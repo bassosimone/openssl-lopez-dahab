@@ -158,7 +158,6 @@ static unsigned char bitmask_end_values[]   = {0xff, 0x01, 0x03, 0x07, 0x0f, 0x1
 /* XDTLS:  figure out the right values */
 static unsigned int g_probable_mtu[] = {1500 - 28, 512 - 28, 256 - 28};
 
-static unsigned int dtls1_min_mtu(void);
 static unsigned int dtls1_guess_mtu(unsigned int curr_mtu);
 static void dtls1_fix_message_header(SSL *s, unsigned long frag_off, 
 	unsigned long frag_len);
@@ -264,10 +263,9 @@ int dtls1_do_write(SSL *s, int type)
 			return ret;
 		mtu = s->d1->mtu - (DTLS1_HM_HEADER_LENGTH + DTLS1_RT_HEADER_LENGTH);
 		}
-
-	OPENSSL_assert(mtu > 0);  /* should have something reasonable now */
-
 #endif
+
+	OPENSSL_assert(s->d1->mtu >= dtls1_min_mtu());  /* should have something reasonable now */
 
 	if ( s->init_off == 0  && type == SSL3_RT_HANDSHAKE)
 		OPENSSL_assert(s->init_num == 
@@ -795,7 +793,13 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
 		*ok = 0;
 		return i;
 		}
-	OPENSSL_assert(i == DTLS1_HM_HEADER_LENGTH);
+	/* Handshake fails if message header is incomplete */
+	if (i != DTLS1_HM_HEADER_LENGTH)
+		{
+		al=SSL_AD_UNEXPECTED_MESSAGE;
+		SSLerr(SSL_F_DTLS1_GET_MESSAGE_FRAGMENT,SSL_R_UNEXPECTED_MESSAGE);
+		goto f_err;
+		}
 
 	/* parse the message fragment header */
 	dtls1_get_message_header(wire, &msg_hdr);
@@ -867,7 +871,12 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
 
 	/* XDTLS:  an incorrectly formatted fragment should cause the 
 	 * handshake to fail */
-	OPENSSL_assert(i == (int)frag_len);
+	if (i != (int)frag_len)
+		{
+		al=SSL3_AD_ILLEGAL_PARAMETER;
+		SSLerr(SSL_F_DTLS1_GET_MESSAGE_FRAGMENT,SSL3_AD_ILLEGAL_PARAMETER);
+		goto f_err;
+		}
 
 	*ok = 1;
 
@@ -1367,7 +1376,7 @@ dtls1_write_message_header(SSL *s, unsigned char *p)
 	return p;
 	}
 
-static unsigned int 
+unsigned int 
 dtls1_min_mtu(void)
 	{
 	return (g_probable_mtu[(sizeof(g_probable_mtu) / 
@@ -1407,4 +1416,25 @@ dtls1_get_ccs_header(unsigned char *data, struct ccs_header_st *ccs_hdr)
 	memset(ccs_hdr, 0x00, sizeof(struct ccs_header_st));
 
 	ccs_hdr->type = *(data++);
+	}
+
+int dtls1_shutdown(SSL *s)
+	{
+	int ret;
+#ifndef OPENSSL_NO_SCTP
+	if (BIO_dgram_is_sctp(SSL_get_wbio(s)) &&
+	    !(s->shutdown & SSL_SENT_SHUTDOWN))
+		{
+		ret = BIO_dgram_sctp_wait_for_dry(SSL_get_wbio(s));
+		if (ret < 0) return -1;
+
+		if (ret == 0)
+			BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_SAVE_SHUTDOWN, 1, NULL);
+		}
+#endif
+	ret = ssl3_shutdown(s);
+#ifndef OPENSSL_NO_SCTP
+	BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_SAVE_SHUTDOWN, 0, NULL);
+#endif
+	return ret;
 	}

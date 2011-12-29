@@ -82,6 +82,7 @@ SSL3_ENC_METHOD DTLSv1_enc_data={
 	TLS_MD_CLIENT_FINISH_CONST,TLS_MD_CLIENT_FINISH_CONST_SIZE,
 	TLS_MD_SERVER_FINISH_CONST,TLS_MD_SERVER_FINISH_CONST_SIZE,
 	tls1_alert_code,
+	tls1_export_keying_material,
 	};
 
 long dtls1_default_timeout(void)
@@ -204,7 +205,8 @@ void dtls1_clear(SSL *s)
     pqueue buffered_messages;
 	pqueue sent_messages;
 	pqueue buffered_app_data;
-	
+	unsigned int mtu;
+
 	if (s->d1)
 		{
 		unprocessed_rcds = s->d1->unprocessed_rcds.q;
@@ -212,6 +214,7 @@ void dtls1_clear(SSL *s)
 		buffered_messages = s->d1->buffered_messages;
 		sent_messages = s->d1->sent_messages;
 		buffered_app_data = s->d1->buffered_app_data.q;
+		mtu = s->d1->mtu;
 
 		dtls1_clear_queues(s);
 
@@ -220,6 +223,11 @@ void dtls1_clear(SSL *s)
 		if (s->server)
 			{
 			s->d1->cookie_len = sizeof(s->d1->cookie);
+			}
+
+		if (SSL_get_options(s) & SSL_OP_NO_QUERY_MTU)
+			{
+			s->d1->mtu = mtu;
 			}
 
 		s->d1->unprocessed_rcds.q = unprocessed_rcds;
@@ -284,6 +292,15 @@ const SSL_CIPHER *dtls1_get_cipher(unsigned int u)
 
 void dtls1_start_timer(SSL *s)
 	{
+#ifndef OPENSSL_NO_SCTP
+	/* Disable timer for SCTP */
+	if (BIO_dgram_is_sctp(SSL_get_wbio(s)))
+		{
+		memset(&(s->d1->next_timeout), 0, sizeof(struct timeval));
+		return;
+		}
+#endif
+
 	/* If timer is not set, initialize duration with 1 second */
 	if (s->d1->next_timeout.tv_sec == 0 && s->d1->next_timeout.tv_usec == 0)
 		{

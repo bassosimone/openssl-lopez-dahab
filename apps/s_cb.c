@@ -549,6 +549,9 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 				case 114:
 					str_details2 = " bad_certificate_hash_value";
 					break;
+				case 115:
+					str_details2 = " unknown_psk_identity";
+					break;
 					}
 				}
 			}
@@ -671,6 +674,10 @@ void MS_CALLBACK tlsext_cb(SSL *s, int client_server, int type,
 
 		case TLSEXT_TYPE_renegotiate:
 		extname = "renegotiate";
+		break;
+
+		case TLSEXT_TYPE_signature_algorithms:
+		extname = "signature algorithms";
 		break;
 
 #ifdef TLSEXT_TYPE_opaque_prf_input
