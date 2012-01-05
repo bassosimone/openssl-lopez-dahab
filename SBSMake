@@ -1,0 +1,3 @@
+#!/bin/sh
+make -j2 build_crypto
+gcc -Wall -I include -o ectest crypto/ec/ectest.c libcrypto.a

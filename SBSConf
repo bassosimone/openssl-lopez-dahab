@@ -1,0 +1,4 @@
+#!/bin/sh
+OPTIONS=$(grep -v ^# SBSConf.txt)
+./config $OPTIONS
+make -j2 depend
