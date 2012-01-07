@@ -1092,10 +1092,6 @@ static void char2_field_tests(void)
 		C2_B571
 		);
 
-	/* After this point it loops forever and I suspect it is
-	   due to the invert -- Simone */
-	ABORT;
-
 	/* more tests using the last curve */
 
 	if (!EC_POINT_copy(Q, P)) ABORT;
