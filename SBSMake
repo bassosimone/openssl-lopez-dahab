@@ -2,3 +2,4 @@
 make -j2 build_crypto
 gcc -Wall -I include -I. -o speed apps/apps.c apps/speed.c libcrypto.a
 gcc -Wall -I include -o ectest crypto/ec/ectest.c libcrypto.a
+g++ -Wall -I include -o ecspeed crypto/ec/ecspeed.c libcrypto.a 
