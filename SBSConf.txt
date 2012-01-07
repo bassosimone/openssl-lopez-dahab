@@ -1,4 +1,4 @@
-no-asm
+#no-asm
 #no-aes
 #no-asn1
 no-bf
