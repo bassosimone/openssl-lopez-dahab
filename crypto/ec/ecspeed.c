@@ -122,7 +122,7 @@ static void speed_tests(void)
 	EC_GROUP *group[2];
 
 	EC_POINT *P[2], *Q[2];
-	BIGNUM *x;
+	BIGNUM *x, *y, *z, *cof;
 	char *groupnames[2];
 	size_t i;
 	long k;
@@ -136,13 +136,20 @@ static void speed_tests(void)
 	a = BN_new();
 	b = BN_new();
 	x = BN_new();
+	y = BN_new();
+	z = BN_new();
+	cof = BN_new();
 	if (!p || !a || !b) ABORT;
 
 	/* Setting parameters for a NIST curve K-233 (FIPS PUB 186-2, App. 6) */
 	if (!BN_hex2bn(&p, "020000000000000000000000000000000000000004000000000000000001")) ABORT;
 	if (!BN_hex2bn(&a, "0")) ABORT;
 	if (!BN_hex2bn(&b, "1")) ABORT;
-	if (!BN_hex2bn(&x, "0")) ABORT;
+
+	if (!BN_hex2bn(&x, "017232BA853A7E731AF129F22FF4149563A419C26BF50A4C9D6EEFAD6126")) ABORT;
+	if (!BN_hex2bn(&y, "01DB537DECE819B7F70F555A67C427A8CD9BF18AEB9B56E0C11056FAE6A3")) ABORT;
+	if (!BN_hex2bn(&z, "008000000000000000000000000000069D5BB915BCD46EFB1AD5F173ABDF")) ABORT;
+	if (!BN_hex2bn(&cof, "4")) ABORT;
 
 	group[0] = EC_GROUP_new(EC_GF2m_simple_method());
 	groupnames[0] = strdup("Simple");
@@ -173,10 +180,10 @@ static void speed_tests(void)
 		double dt;
 		P[i] = EC_POINT_new(group[i]);
 		Q[i] = EC_POINT_new(group[i]);
-		if (!BN_hex2bn(&x, "1")) ABORT;
-		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], P[i], x, 0, ctx)) ABORT;
-		if (!BN_hex2bn(&x, "2")) ABORT;
-		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], Q[i], x, 0, ctx)) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], P[i], x, 0, ctx)) ABORT;
+
+		if (!EC_GROUP_set_generator(group[i], P[i], z, cof)) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], Q[i], z, 0, ctx)) ABORT;
 		
 		//Timing should begin here
 		gettimeofday(&t, NULL);
@@ -203,8 +210,8 @@ static void speed_tests(void)
 		timeval t;
 		double dt;
 		P[i] = EC_POINT_new(group[i]);
-		if (!BN_hex2bn(&x, "123")) ABORT;
-		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], P[i], x, 0, ctx)) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], P[i], x, 0, ctx)) ABORT;
+		if (!EC_GROUP_set_generator(group[i], P[i], z, cof)) ABORT;
 		//Timing should begin here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f);
@@ -244,7 +251,7 @@ static void speed_tests(void)
 		}
 	//Clean everything up
 	if (ctx) BN_CTX_free(ctx);
-	BN_free(p); BN_free(a); BN_free(b); BN_free(x);
+	BN_free(p); BN_free(a); BN_free(b); BN_free(x); BN_free(y); BN_free(z); BN_free(cof);
 	EC_GROUP_free(group[0]);
 	EC_GROUP_free(group[1]);
 
