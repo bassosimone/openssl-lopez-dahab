@@ -121,11 +121,10 @@ static void speed_tests(void)
 	BIGNUM *p, *a, *b;
 	EC_GROUP *group[2];
 
-	EC_POINT *P[2], *Q[2], *R[2];
-	BIGNUM *x, *y, *z, *cof;
+	EC_POINT *P[2], *Q[2];
+	BIGNUM *x;
 	char *groupnames[2];
-	unsigned char buf[100];
-	size_t i, len;
+	size_t i;
 	long k;
 
 	#if 1
@@ -136,11 +135,14 @@ static void speed_tests(void)
 	p = BN_new();
 	a = BN_new();
 	b = BN_new();
+	x = BN_new();
 	if (!p || !a || !b) ABORT;
 
-	if (!BN_hex2bn(&p, "13")) ABORT;
-	if (!BN_hex2bn(&a, "3")) ABORT;
+	/* Setting parameters for a NIST curve K-233 (FIPS PUB 186-2, App. 6) */
+	if (!BN_hex2bn(&p, "020000000000000000000000000000000000000004000000000000000001")) ABORT;
+	if (!BN_hex2bn(&a, "0")) ABORT;
 	if (!BN_hex2bn(&b, "1")) ABORT;
+	if (!BN_hex2bn(&x, "0")) ABORT;
 
 	group[0] = EC_GROUP_new(EC_GF2m_simple_method());
 	groupnames[0] = strdup("Simple");
@@ -160,24 +162,29 @@ static void speed_tests(void)
 	BN_print_fp(stdout, a);
 	fprintf(stdout, "\n    b = 0x");
 	BN_print_fp(stdout, b);
-	fprintf(stdout, "\n(0x... means binary polynomial)\n");
 
 	//First test - ADD
 	fprintf(stdout, "\n### ADD test ###\n\n");
 
 	for (i=0;i<2;++i) 
 		{
-		fprintf(stdout, "Performing 10.000.000 sums with algorithm %s\n", groupnames[i]);
+		fprintf(stdout, "Performing 10.000 sums with algorithm %s\n", groupnames[i]);
 		timeval t;
 		double dt;
 		P[i] = EC_POINT_new(group[i]);
 		Q[i] = EC_POINT_new(group[i]);
-		R[i] = EC_POINT_new(group[i]);
+		if (!BN_hex2bn(&x, "1")) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], P[i], x, 0, ctx)) ABORT;
+		if (!BN_hex2bn(&x, "2")) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], Q[i], x, 0, ctx)) ABORT;
+		
 		//Timing should begin here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f);
-		for (k=0;k<10000000;++k)
+		for (k=0;k<10000;++k) 
+			{
 			if (!EC_POINT_add(group[i], P[i], P[i], Q[i], ctx)) ABORT;
+			}
 		//Timing should end here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f) - dt;
@@ -185,7 +192,6 @@ static void speed_tests(void)
 
 		EC_POINT_free(P[i]);
 		EC_POINT_free(Q[i]);
-		EC_POINT_free(R[i]);
 		}
 
 	//Second test - DBL
@@ -197,6 +203,8 @@ static void speed_tests(void)
 		timeval t;
 		double dt;
 		P[i] = EC_POINT_new(group[i]);
+		if (!BN_hex2bn(&x, "123")) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], P[i], x, 0, ctx)) ABORT;
 		//Timing should begin here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f);
@@ -236,7 +244,7 @@ static void speed_tests(void)
 		}
 	//Clean everything up
 	if (ctx) BN_CTX_free(ctx);
-	BN_free(p); BN_free(a); BN_free(b);
+	BN_free(p); BN_free(a); BN_free(b); BN_free(x);
 	EC_GROUP_free(group[0]);
 	EC_GROUP_free(group[1]);
 
