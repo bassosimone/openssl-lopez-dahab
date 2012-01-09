@@ -53,6 +53,6 @@ no-threads
 #no-ts
 no-txt_db
 #no-ui
-no-whrlpool
+no-whirlpool
 #no-x509
 #no-x509v3
