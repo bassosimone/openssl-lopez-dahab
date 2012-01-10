@@ -458,7 +458,7 @@ end:	lopezdahab_finish(&ld);
 
 /* Perform affine ADD in Lopez-Dahab coordinates */
 int
-ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
+__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
 	return (lopezdahab_add(group, r, a, b, ctx, 1));
@@ -466,7 +466,7 @@ ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
 
 /* Perform affine DBL in Lopez-Dahab coordinates */
 int
-ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
+__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
 	return (lopezdahab_dbl(group, r, a, ctx, 1));
@@ -474,7 +474,7 @@ ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
 
 /* Perform Lopez-Dahab ADD in Lopez-Dahab coordinates */
 int
-__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
+ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
 	return (lopezdahab_add(group, r, a, b, ctx, 0));
@@ -482,7 +482,7 @@ __ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
 
 /* Perform Lopez-Dahab DBL in Lopez-Dahab coordinates */
 int
-__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
+ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
 	return (lopezdahab_dbl(group, r, a, ctx, 0));
