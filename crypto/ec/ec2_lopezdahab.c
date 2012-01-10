@@ -369,6 +369,18 @@ lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 	struct	lopezdahab ld;
 	int	result = 0;
 
+	/*
+	 * When the input is already in Lopez-Dahab coordinates
+	 * don't bother with checking for corner cases because we
+	 * assume that we're invoked as a building block for the
+	 * MUL and that the caller has provided a "good" point,
+	 * so we'll never get to the point at infinity.
+	 * NB: The double of the point at infinity is the point at
+	 * infinity.
+	 */
+	if (convert && EC_POINT_is_at_infinity(group, a))
+		return (EC_POINT_set_to_infinity(group, r));
+
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
 	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
@@ -392,28 +404,37 @@ lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 	int	result = 0;
 
 	/*
-	 * Catch the "point at infinity" case, where our
-	 * formulae return a wrong result.
-	 * (XXX EC_POINT_is_at_infinity() should work for
-	 * both type of coordinates, right?)
+	 * When the input is already in Lopez-Dahab coordinates
+	 * don't bother with checking for corner cases because we
+	 * assume that we're invoked as a building block for the
+	 * MUL and that the caller has provided a "good" point,
+	 * so we'll never get to the point at infinity.
 	 */
-	if (EC_POINT_is_at_infinity(group, a))
-		return EC_POINT_copy(r, b);
-	if (EC_POINT_is_at_infinity(group, b))
-		return EC_POINT_copy(r, a);
-
-	/*
-	 * If the two points are equal, the formula for
-	 * add return a wrong result as well.
-	 * (EC_POINT_cmp() works for points in both
-	 * affine and Lopez-Dahab coordinates.)
-	 */
-	if (EC_POINT_cmp(group, a, b, ctx) == 0)
-		return lopezdahab_dbl(group, r, a, ctx, convert);
-
-	/*
-	 * TODO Any more special cases?
-	 */
+	if (convert) {
+		/*
+		 * When one of the two points is at infinity
+		 * the result is the other point.
+		 */
+		if (EC_POINT_is_at_infinity(group, a))
+			return (EC_POINT_copy(r, b));
+		if (EC_POINT_is_at_infinity(group, b))
+			return (EC_POINT_copy(r, a));
+		/*
+		 * When the two points are one the inverse
+		 * of the other the result is our friend the
+		 * point at infinity.
+		 * When the two points are equal the explicit
+		 * formula for ADD does not work and we need
+		 * instead to use the DBL formula.
+		 */
+		if (BN_cmp(&a->X, &b->X) == 0) {
+			if (BN_cmp(&a->Y, &b->Y) != 0)
+				return (EC_POINT_set_to_infinity(group, r));
+			else
+				return (lopezdahab_dbl(group, r, a,
+				    ctx, convert));
+		}
+	}
 
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
