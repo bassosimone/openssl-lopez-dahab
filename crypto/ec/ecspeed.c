@@ -183,7 +183,7 @@ static void speed_tests(void)
 		if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], P[i], x, 0, ctx)) ABORT;
 
 		if (!EC_GROUP_set_generator(group[i], P[i], z, cof)) ABORT;
-		if (!EC_POINT_set_compressed_coordinates_GFp(group[i], Q[i], z, 0, ctx)) ABORT;
+		if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], Q[i], z, 0, ctx)) ABORT;
 		
 		//Timing should begin here
 		gettimeofday(&t, NULL);
