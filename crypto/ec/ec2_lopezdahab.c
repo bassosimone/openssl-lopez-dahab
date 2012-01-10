@@ -161,14 +161,13 @@ lopezdahab_finish(struct lopezdahab *ld)
 	    ld->ctx))							\
 		return (0)
 
-#define LOPEZDAHAB_DIV(res, op1, op2)					\
-	if (!BN_GF2m_mod_div(res, op1, op2, &ld->group->field,		\
-	    ld->ctx))							\
-		return (0)
-
 #define LOPEZDAHAB_SQUARE(res, op1)					\
 	if (!BN_GF2m_mod_sqr_arr(res, op1, ld->group->poly,		\
 	    ld->ctx))							\
+		return (0)
+
+#define LOPEZDAHAB_INV(res, op1)					\
+	if (!BN_GF2m_mod_inv(res, op1, &ld->group->field, ld->ctx))	\
 		return (0)
 
 /*
@@ -314,9 +313,10 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 		 * The point (X, Y, Z) in lopezdahab coordinates is
 		 * converted to (X/Z, Y/Z^2) in affine coordinates.
 		 */
-		LOPEZDAHAB_DIV(X3, X1, Z1);
-		LOPEZDAHAB_SQUARE(&ld->ld_t0, Z1);
-		LOPEZDAHAB_DIV(Y3, Y1, &ld->ld_t0);
+		LOPEZDAHAB_INV(&ld->ld_t0, Z1);
+		LOPEZDAHAB_MUL(X3, X1, &ld->ld_t0);
+		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
+		LOPEZDAHAB_MUL(Y3, Y1, &ld->ld_t0);
 		/*
 		 * Reset Z to 1
 		 */
