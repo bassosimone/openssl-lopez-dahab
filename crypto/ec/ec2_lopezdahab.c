@@ -161,14 +161,13 @@ lopezdahab_finish(struct lopezdahab *ld)
 	    ld->ctx))							\
 		return (0)
 
-#define LOPEZDAHAB_DIV(res, op1, op2)					\
-	if (!BN_GF2m_mod_div(res, op1, op2, &ld->group->field,		\
-	    ld->ctx))							\
-		return (0)
-
 #define LOPEZDAHAB_SQUARE(res, op1)					\
 	if (!BN_GF2m_mod_sqr_arr(res, op1, ld->group->poly,		\
 	    ld->ctx))							\
+		return (0)
+
+#define LOPEZDAHAB_INV(res, op1)					\
+	if (!BN_GF2m_mod_inv(res, op1, &ld->group->field, ld->ctx))	\
 		return (0)
 
 /*
@@ -237,12 +236,20 @@ lopezdahab_add_2005_dl(struct lopezdahab *ld)
  * Load and store
  */
 
-/* Convert to Lopez-Dahab coordinates */
+/* Load a point and optionally convert it to Lopez-Dahab coordinates */
 static int
-lopezdahab_import(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
-    const BIGNUM *X1, const BIGNUM *Y1, const BIGNUM *Z1)
+lopezdahab_load(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3, const BIGNUM *X1,
+    const BIGNUM *Y1, const BIGNUM *Z1, int convert)
 {
-	if (BN_is_zero(Z1)) {
+	if (!convert) {
+		/* Already in Lopez-Dahab coordinates */
+		if (!BN_copy(X3, X1))
+			return (0);
+		if (!BN_copy(Y3, Y1))
+			return (0);
+		if (!BN_copy(Z3, Z1))
+			return (0);
+	} else if (BN_is_zero(Z1)) {
 		/* This is the point at infinity */
 		if (!BN_set_word(X3, 1))
 			return (0);
@@ -265,27 +272,35 @@ lopezdahab_import(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 /* Get P1 coordinates from (X,Y,Z) */
 static int
 lopezdahab_load_P1(struct lopezdahab *ld, const BIGNUM *X, const BIGNUM *Y,
-    const BIGNUM *Z)
+    const BIGNUM *Z, int convert)
 {
-	return (lopezdahab_import(&ld->ld_X1, &ld->ld_Y1, &ld->ld_Z1,
-	    X, Y, Z));
+	return (lopezdahab_load(&ld->ld_X1, &ld->ld_Y1, &ld->ld_Z1,
+	    X, Y, Z, convert));
 }
 
 /* Get P2 coordinates from (X,Y,Z) */
 static int
 lopezdahab_load_P2(struct lopezdahab *ld, const BIGNUM *X,
-    const BIGNUM *Y, const BIGNUM *Z)
+    const BIGNUM *Y, const BIGNUM *Z, int convert)
 {
-	return (lopezdahab_import(&ld->ld_X2, &ld->ld_Y2, &ld->ld_Z2,
-	    X, Y, Z));
+	return (lopezdahab_load(&ld->ld_X2, &ld->ld_Y2, &ld->ld_Z2,
+	    X, Y, Z, convert));
 }
 
-/* Convert from Lopez-Dahab coordinates */
+/* Store a point and optionally convert it from Lopez-Dahab coordinates */
 static int
-lopezdahab_export(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
-    const BIGNUM *X1, const BIGNUM *Y1, const BIGNUM *Z1)
+lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
+    const BIGNUM *X1, const BIGNUM *Y1, const BIGNUM *Z1, int convert)
 {
-	if (BN_is_zero(Y1) && BN_is_zero(Z1)) {
+	if (!convert) {
+		/* Stay in Lopez-Dahab coordinates */
+		if (!BN_copy(X3, X1))
+			return (0);
+		if (!BN_copy(Y3, Y1))
+			return (0);
+		if (!BN_copy(Z3, Z1))
+			return (0);
+	} else if (BN_is_zero(Y1) && BN_is_zero(Z1)) {
 		/* This is the point at infinity */
 		if (!BN_set_word(X3, 1))
 			return (0);
@@ -298,9 +313,10 @@ lopezdahab_export(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 		 * The point (X, Y, Z) in lopezdahab coordinates is
 		 * converted to (X/Z, Y/Z^2) in affine coordinates.
 		 */
-		LOPEZDAHAB_DIV(X3, X1, Z1);
-		LOPEZDAHAB_SQUARE(&ld->ld_t0, Z1);
-		LOPEZDAHAB_DIV(Y3, Y1, &ld->ld_t0);
+		LOPEZDAHAB_INV(&ld->ld_t0, Z1);
+		LOPEZDAHAB_MUL(X3, X1, &ld->ld_t0);
+		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
+		LOPEZDAHAB_MUL(Y3, Y1, &ld->ld_t0);
 		/*
 		 * Reset Z to 1
 		 */
@@ -313,31 +329,21 @@ lopezdahab_export(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 
 /* Save P3 coordinates into (X,Y,Z) */
 static int
-lopezdahab_store_P3(struct lopezdahab *ld, BIGNUM *X, BIGNUM *Y, BIGNUM *Z)
+lopezdahab_store_P3(struct lopezdahab *ld, BIGNUM *X, BIGNUM *Y, BIGNUM *Z,
+    int convert)
 {
-	return (lopezdahab_export(ld, X, Y, Z, &ld->ld_X3, &ld->ld_Y3,
-	    &ld->ld_Z3));
+	return (lopezdahab_store(ld, X, Y, Z, &ld->ld_X3, &ld->ld_Y3,
+	    &ld->ld_Z3, convert));
 }
 
 /*
  * Add and double
- * TODO At the moment they are macros but they should become
- * wrappers to: (a) catch for special cases, such as the point
- * at infinity (see below); (b) select the best algorithm for
- * the input, e.g. optimized formulae for when Z=1.
  */
 
-#define lopezdahab_add		lopezdahab_add_2005_dl
-#define lopezdahab_dbl		lopezdahab_dbl_2005_l
-
-/*
- * For testing
- */
-
-/* Perform ADD in Lopez-Dahab coordinates */
-int
-ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
-    const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
+/* Internal implementation of ADD in Lopez-Dahab coordinates */
+static int
+lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
+    const EC_POINT *b, BN_CTX *ctx, int convert)
 {
 	struct	lopezdahab ld;
 	int	result = 0;
@@ -345,6 +351,8 @@ ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
 	/*
 	 * Catch the "point at infinity" case, where our
 	 * formulae return a wrong result.
+	 * (XXX EC_POINT_is_at_infinity() should work for
+	 * both type of coordinates, right?)
 	 */
 	if (EC_POINT_is_at_infinity(group, a))
 		return EC_POINT_copy(r, b);
@@ -354,6 +362,8 @@ ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
 	/*
 	 * If the two points are equal, the formula for
 	 * add return a wrong result as well.
+	 * (EC_POINT_cmp() works for points in both
+	 * affine and Lopez-Dahab coordinates.)
 	 */
 	if (EC_POINT_cmp(group, a, b, ctx) == 0)
 		return ec_GF2m_lopezdahab_dbl(group, r, a, ctx);
@@ -364,13 +374,13 @@ ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
 
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
-	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z))
+	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
 		goto end;
-	if (!lopezdahab_load_P2(&ld, &b->X, &b->Y, &b->Z))
+	if (!lopezdahab_load_P2(&ld, &b->X, &b->Y, &b->Z, convert))
 		goto end;
-	if (!lopezdahab_add(&ld))
+	if (!lopezdahab_add_2005_dl(&ld))
 		goto end;
-	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z))
+	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
 		goto end;
 	result = 1;
 
@@ -378,26 +388,62 @@ end:	lopezdahab_finish(&ld);
 	return (result);
 }
 
-/* Perform DBL in Lopez-Dahab coordinates */
-int
-ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
-    const EC_POINT *a, BN_CTX *ctx)
+/* Internal implementation of DBL in Lopez-Dahab coordinates */
+static int
+lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
+    BN_CTX *ctx, int convert)
 {
 	struct	lopezdahab ld;
 	int	result = 0;
 
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
-	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z))
+	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
 		goto end;
-	if (!lopezdahab_dbl(&ld))
+	if (!lopezdahab_dbl_2005_l(&ld))
 		goto end;
-	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z))
+	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
 		goto end;
 	result = 1;
 
 end:	lopezdahab_finish(&ld);
 	return (result);
+}
+
+/*
+ * For testing
+ */
+
+/* Perform affine ADD in Lopez-Dahab coordinates */
+int
+ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
+    const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
+{
+	return (lopezdahab_add(group, r, a, b, ctx, 1));
+}
+
+/* Perform affine DBL in Lopez-Dahab coordinates */
+int
+ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
+    const EC_POINT *a, BN_CTX *ctx)
+{
+	return (lopezdahab_dbl(group, r, a, ctx, 1));
+}
+
+/* Perform Lopez-Dahab ADD in Lopez-Dahab coordinates */
+int
+__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
+    const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
+{
+	return (lopezdahab_add(group, r, a, b, ctx, 0));
+}
+
+/* Perform Lopez-Dahab DBL in Lopez-Dahab coordinates */
+int
+__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
+    const EC_POINT *a, BN_CTX *ctx)
+{
+	return (lopezdahab_dbl(group, r, a, ctx, 0));
 }
 
 /*
