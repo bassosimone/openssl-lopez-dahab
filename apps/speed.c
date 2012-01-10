@@ -366,7 +366,16 @@ int MAIN(int argc, char **argv)
 	int mret=1;
 	long count=0,save_count=0;
 	int i,j,k;
-#if !defined(OPENSSL_NO_RSA) || !defined(OPENSSL_NO_DSA)
+#if !defined(OPENSSL_NO_ECDH)
+	long ecdh_count;
+#endif
+#if !defined(OPENSSL_NO_ECDSA)
+	long ecdsa_count;
+#endif
+#if !defined(OPENSSL_NO_DSA)
+	long dsa_count;
+#endif
+#if !defined(OPENSSL_NO_RSA)
 	long rsa_count;
 #endif
 #ifndef OPENSSL_NO_RSA
@@ -2106,7 +2115,7 @@ int MAIN(int argc, char **argv)
 			{
 			BIO_printf(bio_err,"DSA sign failure.  No DSA sign will be done.\n");
 			ERR_print_errors(bio_err);
-			rsa_count=1;
+			dsa_count=1;
 			}
 		else
 			{
@@ -2132,7 +2141,7 @@ int MAIN(int argc, char **argv)
 				   : "%ld %d bit DSA signs in %.2fs\n",
 				   count,dsa_bits[j],d);
 			dsa_results[j][0]=d/(double)count;
-			rsa_count=count;
+			dsa_count=count;
 			}
 
 		ret=DSA_verify(EVP_PKEY_DSA,buf,20,buf2,
@@ -2169,7 +2178,7 @@ int MAIN(int argc, char **argv)
 			dsa_results[j][1]=d/(double)count;
 			}
 
-		if (rsa_count <= 1)
+		if (dsa_count <= 1)
 			{
 			/* if longer than 10s, don't do any more */
 			for (j++; j<DSA_NUM; j++)
@@ -2195,7 +2204,7 @@ int MAIN(int argc, char **argv)
 			{
 			BIO_printf(bio_err,"ECDSA failure.\n");
 			ERR_print_errors(bio_err);
-			rsa_count=1;
+			ecdsa_count=1;
 			} 
 		else 
 			{
@@ -2210,7 +2219,7 @@ int MAIN(int argc, char **argv)
 				{
 				BIO_printf(bio_err,"ECDSA sign failure.  No ECDSA sign will be done.\n");
 				ERR_print_errors(bio_err);
-				rsa_count=1;
+				ecdsa_count=1;
 				} 
 			else 
 				{
@@ -2240,7 +2249,7 @@ int MAIN(int argc, char **argv)
 					"%ld %d bit ECDSA signs in %.2fs \n", 
 					count, test_curves_bits[j], d);
 				ecdsa_results[j][0]=d/(double)count;
-				rsa_count=count;
+				ecdsa_count=count;
 				}
 
 			/* Perform ECDSA verification test */
@@ -2277,7 +2286,7 @@ int MAIN(int argc, char **argv)
 				ecdsa_results[j][1]=d/(double)count;
 				}
 
-			if (rsa_count <= 1) 
+			if (ecdsa_count <= 1) 
 				{
 				/* if longer than 10s, don't do any more */
 				for (j++; j<EC_NUM; j++)
@@ -2303,7 +2312,7 @@ int MAIN(int argc, char **argv)
 			{
 			BIO_printf(bio_err,"ECDH failure.\n");
 			ERR_print_errors(bio_err);
-			rsa_count=1;
+			ecdh_count=1;
 			}
 		else
 			{
@@ -2313,7 +2322,7 @@ int MAIN(int argc, char **argv)
 				{
 				BIO_printf(bio_err,"ECDH key generation failure.\n");
 				ERR_print_errors(bio_err);
-				rsa_count=1;		
+				ecdh_count=1;		
 				}
 			else
 				{
@@ -2357,7 +2366,7 @@ int MAIN(int argc, char **argv)
 					{
 					BIO_printf(bio_err,"ECDH computations don't match.\n");
 					ERR_print_errors(bio_err);
-					rsa_count=1;		
+					ecdh_count=1;		
 					}
 
 				pkey_print_message("","ecdh",
@@ -2375,12 +2384,12 @@ int MAIN(int argc, char **argv)
 				BIO_printf(bio_err, mr ? "+R7:%ld:%d:%.2f\n" :"%ld %d-bit ECDH ops in %.2fs\n",
 				count, test_curves_bits[j], d);
 				ecdh_results[j][0]=d/(double)count;
-				rsa_count=count;
+				ecdh_count=count;
 				}
 			}
 
 
-		if (rsa_count <= 1)
+		if (ecdh_count <= 1)
 			{
 			/* if longer than 10s, don't do any more */
 			for (j++; j<EC_NUM; j++)
@@ -2718,6 +2727,7 @@ static int do_multi(int multi)
 				for(j=0 ; j < SIZE_NUM ; ++j)
 					results[alg][j]+=atof(sstrsep(&p,sep));
 				}
+#ifndef OPENSSL_NO_RSA
 			else if(!strncmp(buf,"+F2:",4))
 				{
 				int k;
@@ -2739,27 +2749,7 @@ static int do_multi(int multi)
 				else
 					rsa_results[k][1]=d;
 				}
-			else if(!strncmp(buf,"+F2:",4))
-				{
-				int k;
-				double d;
-				
-				p=buf+4;
-				k=atoi(sstrsep(&p,sep));
-				sstrsep(&p,sep);
-
-				d=atof(sstrsep(&p,sep));
-				if(n)
-					rsa_results[k][0]=1/(1/rsa_results[k][0]+1/d);
-				else
-					rsa_results[k][0]=d;
-
-				d=atof(sstrsep(&p,sep));
-				if(n)
-					rsa_results[k][1]=1/(1/rsa_results[k][1]+1/d);
-				else
-					rsa_results[k][1]=d;
-				}
+#endif
 #ifndef OPENSSL_NO_DSA
 			else if(!strncmp(buf,"+F3:",4))
 				{
