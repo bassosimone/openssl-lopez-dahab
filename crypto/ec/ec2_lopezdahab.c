@@ -340,6 +340,28 @@ lopezdahab_store_P3(struct lopezdahab *ld, BIGNUM *X, BIGNUM *Y, BIGNUM *Z,
  * Add and double
  */
 
+/* Internal implementation of DBL in Lopez-Dahab coordinates */
+static int
+lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
+    BN_CTX *ctx, int convert)
+{
+	struct	lopezdahab ld;
+	int	result = 0;
+
+	if (!lopezdahab_init(&ld, ctx, group))
+		goto end;
+	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
+		goto end;
+	if (!lopezdahab_dbl_2005_l(&ld))
+		goto end;
+	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
+		goto end;
+	result = 1;
+
+end:	lopezdahab_finish(&ld);
+	return (result);
+}
+
 /* Internal implementation of ADD in Lopez-Dahab coordinates */
 static int
 lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
@@ -366,7 +388,7 @@ lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 	 * affine and Lopez-Dahab coordinates.)
 	 */
 	if (EC_POINT_cmp(group, a, b, ctx) == 0)
-		return ec_GF2m_lopezdahab_dbl(group, r, a, ctx);
+		return lopezdahab_dbl(group, r, a, ctx, convert);
 
 	/*
 	 * TODO Any more special cases?
@@ -379,28 +401,6 @@ lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 	if (!lopezdahab_load_P2(&ld, &b->X, &b->Y, &b->Z, convert))
 		goto end;
 	if (!lopezdahab_add_2005_dl(&ld))
-		goto end;
-	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
-		goto end;
-	result = 1;
-
-end:	lopezdahab_finish(&ld);
-	return (result);
-}
-
-/* Internal implementation of DBL in Lopez-Dahab coordinates */
-static int
-lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
-    BN_CTX *ctx, int convert)
-{
-	struct	lopezdahab ld;
-	int	result = 0;
-
-	if (!lopezdahab_init(&ld, ctx, group))
-		goto end;
-	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
-		goto end;
-	if (!lopezdahab_dbl_2005_l(&ld))
 		goto end;
 	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
 		goto end;
