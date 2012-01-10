@@ -30,7 +30,7 @@ no-md2
 no-md4
 #no-md5
 no-mdc2
-no-modes
+#no-modes
 #no-objects
 #no-ocsp
 #no-pem
@@ -51,7 +51,7 @@ no-srp
 no-store
 no-threads
 #no-ts
-no-txt_db
+#no-txt_db
 #no-ui
 no-whirlpool
 #no-x509
