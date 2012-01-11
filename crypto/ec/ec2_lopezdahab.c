@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * Written by Simone Basso.
+ * Written by Simone Basso and Matteo Avalle.
  */
 
 /*
@@ -151,6 +151,10 @@ lopezdahab_finish(struct lopezdahab *ld)
  * to point to more efficient code, e.g. something like the
  * code for nistp224 by Emilia Kasper.
  */
+
+#define LOPEZDAHAB_COPY(op1, op2)					\
+	if (!BN_copy(op1, op2))						\
+		return (0)
 
 #define LOPEZDAHAB_SUM(res, op1, op2)					\
 	if (!BN_GF2m_add(res, op1, op2))				\

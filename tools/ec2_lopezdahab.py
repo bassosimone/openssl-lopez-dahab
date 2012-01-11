@@ -15,7 +15,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-# Written by Simone Basso.
+# Written by Simone Basso and Matteo Avalle.
 #
 
 ''' Generates code for lopezdahab elliptic curves from three operand
@@ -26,6 +26,7 @@
 import os.path
 import sys
 import urllib
+import re
 
 # When True generate debugging statements along with macros
 DEBUG = False
@@ -154,6 +155,14 @@ def process(uri):
                 sys.stdout.write('\tBN_print_fp(stdout, &ld->ld_%s);\n' %
                   left)
 		sys.stdout.write('\tprintf("\\n");\n')
+	elif re.match('^[A-Za-z_][A-Za-z_0-9]*$', right):
+	    sys.stdout.write('\tLOPEZDAHAB_COPY(&ld->ld_%s, &ld->ld_%s);\n' % ( left, right ))
+	    if DEBUG:
+	        sys.stdout.write('\tprintf("%s = %s = ");\n' %
+	           (left, right))
+	        sys.stdout.write('\tBN_print_fp(stdout, &ld->ld_%s);\n' %
+	           right)
+	        sys.stdout.write('\tprintf("\\n");\n')
 
         else:
             raise ValueError('Invalid operation')
