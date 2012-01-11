@@ -250,7 +250,14 @@ lopezdahab_load(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3, const BIGNUM *X1,
 		if (!BN_copy(Z3, Z1))
 			return (0);
 	} else if (BN_is_zero(Z1)) {
-		/* This is the point at infinity */
+		/*
+		 * When the input point is the point at the
+		 * infinity (identified by the flag Z=0), we
+		 * are very strict and the output point is
+		 * (1,0,0), which is the exact representation
+		 * of the point at infinity in Lopez-Dahab
+		 * coordinates.
+		 */
 		if (!BN_set_word(X3, 1))
 			return (0);
 		if (!BN_set_word(Y3, 0))
@@ -262,7 +269,14 @@ lopezdahab_load(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3, const BIGNUM *X1,
 			return (0);
 		if (!BN_copy(Y3, Y1))
 			return (0);
-		if (!BN_set_word(Z3, 1))			/* XXX */
+		/*
+		 * Here we assume that the input point is
+		 * affine and we take the liberty of setting
+		 * Z3 to 1 without bothering to check the
+		 * exact value of Z1, i.e. for us Z1 is just
+		 * a boolean flag.
+		 */
+		if (!BN_set_word(Z3, 1))
 			return (0);
 	}
 
@@ -301,7 +315,14 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 		if (!BN_copy(Z3, Z1))
 			return (0);
 	} else if (BN_is_zero(Y1) && BN_is_zero(Z1)) {
-		/* This is the point at infinity */
+		/*
+		 * When the input point is the point at the
+		 * infinity (identified by Y=0, Z=0 in Lopez-
+		 * Dahab coordinates), the output point is
+		 * (1,0,0), which is a valid representation
+		 * of the point at infinity in affine coordinates
+		 * (any point with Z=0 will do).
+		 */
 		if (!BN_set_word(X3, 1))
 			return (0);
 		if (!BN_set_word(Y3, 0))
