@@ -314,7 +314,7 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 			return (0);
 		if (!BN_copy(Z3, Z1))
 			return (0);
-	} else if (BN_is_zero(Y1) && BN_is_zero(Z1)) {
+	} else if (BN_is_zero(Z1)) {
 		/*
 		 * When the input point is the point at the
 		 * infinity (identified by Y=0, Z=0 in Lopez-
