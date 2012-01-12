@@ -317,7 +317,7 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 	} else if (BN_is_zero(Z1)) {
 		/*
 		 * When the input point is the point at the
-		 * infinity (identified by Y=0, Z=0 in Lopez-
+		 * infinity (identified by Z=0 in Lopez-
 		 * Dahab coordinates), the output point is
 		 * (1,0,0), which is a valid representation
 		 * of the point at infinity in affine coordinates
