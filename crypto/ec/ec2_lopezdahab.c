@@ -250,7 +250,14 @@ lopezdahab_load(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3, const BIGNUM *X1,
 		if (!BN_copy(Z3, Z1))
 			return (0);
 	} else if (BN_is_zero(Z1)) {
-		/* This is the point at infinity */
+		/*
+		 * When the input point is the point at the
+		 * infinity (identified by the flag Z=0), we
+		 * are very strict and the output point is
+		 * (1,0,0), which is the exact representation
+		 * of the point at infinity in Lopez-Dahab
+		 * coordinates.
+		 */
 		if (!BN_set_word(X3, 1))
 			return (0);
 		if (!BN_set_word(Y3, 0))
@@ -262,7 +269,14 @@ lopezdahab_load(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3, const BIGNUM *X1,
 			return (0);
 		if (!BN_copy(Y3, Y1))
 			return (0);
-		if (!BN_set_word(Z3, 1))			/* XXX */
+		/*
+		 * Here we assume that the input point is
+		 * affine and we take the liberty of setting
+		 * Z3 to 1 without bothering to check the
+		 * exact value of Z1, i.e. for us Z1 is just
+		 * a boolean flag.
+		 */
+		if (!BN_set_word(Z3, 1))
 			return (0);
 	}
 
@@ -300,8 +314,15 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 			return (0);
 		if (!BN_copy(Z3, Z1))
 			return (0);
-	} else if (BN_is_zero(Y1) && BN_is_zero(Z1)) {
-		/* This is the point at infinity */
+	} else if (BN_is_zero(Z1)) {
+		/*
+		 * When the input point is the point at the
+		 * infinity (identified by Z=0 in Lopez-
+		 * Dahab coordinates), the output point is
+		 * (1,0,0), which is a valid representation
+		 * of the point at infinity in affine coordinates
+		 * (any point with Z=0 will do).
+		 */
 		if (!BN_set_word(X3, 1))
 			return (0);
 		if (!BN_set_word(Y3, 0))
@@ -340,45 +361,31 @@ lopezdahab_store_P3(struct lopezdahab *ld, BIGNUM *X, BIGNUM *Y, BIGNUM *Z,
  * Add and double
  */
 
-/* Internal implementation of ADD in Lopez-Dahab coordinates */
+/* Internal implementation of DBL in Lopez-Dahab coordinates */
 static int
-lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
-    const EC_POINT *b, BN_CTX *ctx, int convert)
+lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
+    BN_CTX *ctx, int convert)
 {
 	struct	lopezdahab ld;
 	int	result = 0;
 
 	/*
-	 * Catch the "point at infinity" case, where our
-	 * formulae return a wrong result.
-	 * (XXX EC_POINT_is_at_infinity() should work for
-	 * both type of coordinates, right?)
+	 * When the input is already in Lopez-Dahab coordinates
+	 * don't bother with checking for corner cases because we
+	 * assume that we're invoked as a building block for the
+	 * MUL and that the caller has provided a "good" point,
+	 * so we'll never get to the point at infinity.
+	 * NB: The double of the point at infinity is the point at
+	 * infinity.
 	 */
-	if (EC_POINT_is_at_infinity(group, a))
-		return EC_POINT_copy(r, b);
-	if (EC_POINT_is_at_infinity(group, b))
-		return EC_POINT_copy(r, a);
-
-	/*
-	 * If the two points are equal, the formula for
-	 * add return a wrong result as well.
-	 * (EC_POINT_cmp() works for points in both
-	 * affine and Lopez-Dahab coordinates.)
-	 */
-	if (EC_POINT_cmp(group, a, b, ctx) == 0)
-		return ec_GF2m_lopezdahab_dbl(group, r, a, ctx);
-
-	/*
-	 * TODO Any more special cases?
-	 */
+	if (convert && EC_POINT_is_at_infinity(group, a))
+		return (EC_POINT_set_to_infinity(group, r));
 
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
 	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
 		goto end;
-	if (!lopezdahab_load_P2(&ld, &b->X, &b->Y, &b->Z, convert))
-		goto end;
-	if (!lopezdahab_add_2005_dl(&ld))
+	if (!lopezdahab_dbl_2005_l(&ld))
 		goto end;
 	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
 		goto end;
@@ -388,19 +395,54 @@ end:	lopezdahab_finish(&ld);
 	return (result);
 }
 
-/* Internal implementation of DBL in Lopez-Dahab coordinates */
+/* Internal implementation of ADD in Lopez-Dahab coordinates */
 static int
-lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
-    BN_CTX *ctx, int convert)
+lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
+    const EC_POINT *b, BN_CTX *ctx, int convert)
 {
 	struct	lopezdahab ld;
 	int	result = 0;
+
+	/*
+	 * When the input is already in Lopez-Dahab coordinates
+	 * don't bother with checking for corner cases because we
+	 * assume that we're invoked as a building block for the
+	 * MUL and that the caller has provided a "good" point,
+	 * so we'll never get to the point at infinity.
+	 */
+	if (convert) {
+		/*
+		 * When one of the two points is at infinity
+		 * the result is the other point.
+		 */
+		if (EC_POINT_is_at_infinity(group, a))
+			return (EC_POINT_copy(r, b));
+		if (EC_POINT_is_at_infinity(group, b))
+			return (EC_POINT_copy(r, a));
+		/*
+		 * When the two points are one the inverse
+		 * of the other the result is our friend the
+		 * point at infinity.
+		 * When the two points are equal the explicit
+		 * formula for ADD does not work and we need
+		 * instead to use the DBL formula.
+		 */
+		if (BN_cmp(&a->X, &b->X) == 0) {
+			if (BN_cmp(&a->Y, &b->Y) != 0)
+				return (EC_POINT_set_to_infinity(group, r));
+			else
+				return (lopezdahab_dbl(group, r, a,
+				    ctx, convert));
+		}
+	}
 
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
 	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
 		goto end;
-	if (!lopezdahab_dbl_2005_l(&ld))
+	if (!lopezdahab_load_P2(&ld, &b->X, &b->Y, &b->Z, convert))
+		goto end;
+	if (!lopezdahab_add_2005_dl(&ld))
 		goto end;
 	if (!lopezdahab_store_P3(&ld, &r->X, &r->Y, &r->Z, convert))
 		goto end;
