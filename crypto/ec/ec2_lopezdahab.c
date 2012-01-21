@@ -492,6 +492,21 @@ ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
 	return (lopezdahab_dbl(group, r, a, ctx, 0));
 }
 
+/* Forces the given EC_POINT to internally use affine coordinates. */
+int 
+ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx)
+{
+	struct	lopezdahab ld;
+	int	result = 0;
+
+	if (!lopezdahab_init(&ld, ctx, group))
+		goto end;
+	if (!lopezdahab_store_P3(&ld, &point->X, &point->Y, &point->Z, 0))
+		goto end;
+
+end:	lopezdahab_finish(&ld);
+	return (result);
+}
 /*
  * TODO Still I don't know whether we can use the generic wNAF
  * or we need to write our custom wNAF loop.

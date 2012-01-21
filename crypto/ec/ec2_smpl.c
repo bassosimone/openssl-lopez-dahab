@@ -161,7 +161,7 @@ const EC_METHOD *EC_GF2m_fast_method(void)
 		ec_GF2m_simple_is_at_infinity,
 		ec_GF2m_simple_is_on_curve,
 		ec_GF2m_simple_cmp,
-		ec_GF2m_simple_make_affine,
+		ec_GF2m_lopezdahab_make_affine,
 		ec_GF2m_simple_points_make_affine,
 
 		/* the following three method functions are defined in ec2_mult.c */
