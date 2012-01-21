@@ -334,11 +334,19 @@ int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 	 * or fewer points.  Use the ec_wNAF_mul implementation for 3 or more points,
 	 * or if we can perform a fast multiplication based on precomputation.
 	 */
+//Just a pair of hacks to always force the usage of wNAF (for testing purposes)
+#define FORCE_WNAF
+#ifndef FORCE_WNAF
 	if ((scalar && (num > 1)) || (num > 2) || (num == 0 && EC_GROUP_have_precompute_mult(group)))
 		{
+#else
+		if (num == 0) EC_GROUP_have_precompute_mult(group);
+#endif
 		ret = ec_wNAF_mul(group, r, scalar, num, points, scalars, ctx);
 		goto err;
+#ifndef FORCE_WNAF
 		}
+#endif
 
 	if ((p = EC_POINT_new(group)) == NULL) goto err;
 	if ((acc = EC_POINT_new(group)) == NULL) goto err;
