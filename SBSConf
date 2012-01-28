@@ -1,10 +1,22 @@
 #!/bin/sh
+
 OPTIONS=$(grep -v ^# SBSConf.txt)
 PLATFORM=$(uname -a|awk '{print $1" "$15};')
+
+DEBUG=0
+if $DEBUG 
+then
+ PARS="debug darwin64-x86_64-cc $OPTIONS"
+ PARAMS="-d $OPTIONS"
+else
+ PARS="darwin64-x86_64-cc $OPTIONS"
+ PARAMS="$OPTIONS"
+fi
+
 if [ "$PLATFORM" = "Darwin x86_64" ]; then
     # XXX OpenSSL ./config forces me to do this
-    ./Configure darwin64-x86_64-cc $OPTIONS
+    ./Configure $PARAMS
 else
-    ./config $OPTIONS
+    ./config $PARAMS
 fi
 make -j2 depend
