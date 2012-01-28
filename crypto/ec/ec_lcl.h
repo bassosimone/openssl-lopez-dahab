@@ -400,6 +400,7 @@ int ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_
 int __ec_GF2m_lopezdahab_add(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, BN_CTX *);
 int __ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_CTX *);
 int ec_GF2m_lopezdahab_make_affine(const EC_GROUP *, EC_POINT *, BN_CTX *);
+int ec_GF2m_lopezdahab_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar, size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *);
 
 /* method functions in ec2_mult.c */
 int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,

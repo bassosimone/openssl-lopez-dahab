@@ -99,6 +99,8 @@ struct lopezdahab {
 #  define nitems(_x)	(sizeof((_x)) / sizeof((_x)[0]))
 #endif
 
+int must_convert = 1;
+
 /* Initialize the Lopez-Dahab context */
 static int
 lopezdahab_init(struct lopezdahab *ld, BN_CTX *ctx, const EC_GROUP *group)
@@ -462,23 +464,23 @@ end:	lopezdahab_finish(&ld);
 
 /* Perform affine ADD in Lopez-Dahab coordinates */
 int
-__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
+ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
-	return (lopezdahab_add(group, r, a, b, ctx, 1));
+	return (lopezdahab_add(group, r, a, b, ctx, must_convert));
 }
 
 /* Perform affine DBL in Lopez-Dahab coordinates */
 int
-__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
+ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
-	return (lopezdahab_dbl(group, r, a, ctx, 1));
+	return (lopezdahab_dbl(group, r, a, ctx, must_convert));
 }
 
 /* Perform Lopez-Dahab ADD in Lopez-Dahab coordinates */
 int
-ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
+__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
 	return (lopezdahab_add(group, r, a, b, ctx, 0));
@@ -486,7 +488,7 @@ ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
 
 /* Perform Lopez-Dahab DBL in Lopez-Dahab coordinates */
 int
-ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
+__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
 	return (lopezdahab_dbl(group, r, a, ctx, 0));
@@ -496,15 +498,56 @@ ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
 int 
 ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx)
 {
-	struct	lopezdahab ld;
+	struct	lopezdahab ldd;
+	struct  lopezdahab *ld = &ldd;
 	int	result = 0;
 
-	if (!lopezdahab_init(&ld, ctx, group))
-		goto end;
-	if (!lopezdahab_store_P3(&ld, &point->X, &point->Y, &point->Z, 0))
+	if (!lopezdahab_init(ld, ctx, group))
 		goto end;
 
-end:	lopezdahab_finish(&ld);
+	if (BN_is_zero(&point->Y) && BN_is_zero(&point->Z)) 
+	{
+		// This is the point at infinity 
+		if (!BN_set_word(&point->X, 1))
+			goto end;	
+	} else 
+	{
+		//
+		// The point (X, Y, Z) in lopezdahab coordinates is
+		// converted to (X/Z, Y/Z^2) in affine coordinates.
+		//
+		LOPEZDAHAB_INV(&ld->ld_t0, &point->Z);
+
+		LOPEZDAHAB_MUL(&point->X, &point->X, &ld->ld_t0);
+		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
+		LOPEZDAHAB_MUL(&point->Y, &point->Y, &ld->ld_t0);
+		//
+		// Reset Z to 1
+		//
+		if (!BN_set_word(&(point->Z), 1))
+			return (0);
+	}
+
+
+	result = 1;
+
+end:	lopezdahab_finish(ld);
+	return (result);
+}
+
+int
+ec_GF2m_lopezdahab_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar, size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx)
+{
+	int	result = 0;
+	must_convert = 0;
+	if (!ec_GF2m_simple_mul(group, r, scalar, num, points, scalars, ctx))
+		goto end;
+	must_convert = 1;
+	if (!group->meth->make_affine(group, r, ctx))
+		goto end;
+
+	result = 1;
+end:	
 	return (result);
 }
 /*

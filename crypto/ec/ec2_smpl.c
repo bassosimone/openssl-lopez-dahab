@@ -78,7 +78,7 @@
 #endif
 
 
-const EC_METHOD *EC_GF2m_simple_method(void)
+const EC_METHOD *EC_GF2m_fast_method(void)
 	{
 #ifdef OPENSSL_FIPS
 	return fips_ec_gf2m_simple_method();
@@ -129,7 +129,7 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 #endif
 	}
 
-const EC_METHOD *EC_GF2m_fast_method(void)
+const EC_METHOD *EC_GF2m_simple_method(void)
 	{
 #ifdef OPENSSL_FIPS
 	return fips_ec_gf2m_simple_method();
@@ -165,7 +165,7 @@ const EC_METHOD *EC_GF2m_fast_method(void)
 		ec_GF2m_simple_points_make_affine,
 
 		/* the following three method functions are defined in ec2_mult.c */
-		ec_GF2m_simple_mul,
+		ec_GF2m_lopezdahab_mul,
 		ec_GF2m_precompute_mult,
 		ec_GF2m_have_precompute_mult,
 
