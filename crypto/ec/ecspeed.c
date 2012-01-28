@@ -151,9 +151,9 @@ static void speed_tests(void)
 	if (!BN_hex2bn(&z, "008000000000000000000000000000069D5BB915BCD46EFB1AD5F173ABDF")) ABORT;
 	if (!BN_hex2bn(&cof, "4")) ABORT;
 
-	group[0] = EC_GROUP_new(EC_GF2m_simple_method());
+	group[0] = EC_GROUP_new(EC_GF2m_fast_method());
 	groupnames[0] = strdup("Simple");
-	group[1] = EC_GROUP_new(EC_GF2m_fast_method());
+	group[1] = EC_GROUP_new(EC_GF2m_simple_method());
 	groupnames[1] = strdup("Lopez-Dahab");
 
 	if (!group[0]) ABORT;
@@ -175,7 +175,7 @@ static void speed_tests(void)
 
 	for (i=0;i<2;++i) 
 		{
-		fprintf(stdout, "Performing 10.000 sums with algorithm %s\n", groupnames[i]);
+		fprintf(stdout, "Performing 100.000 sums with algorithm %s\n", groupnames[i]);
 		timeval t;
 		double dt;
 		P[i] = EC_POINT_new(group[i]);
@@ -188,7 +188,7 @@ static void speed_tests(void)
 		//Timing should begin here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f);
-		for (k=0;k<10000;++k) 
+		for (k=0;k<100000;++k) 
 			{
 			if (!EC_POINT_add(group[i], P[i], P[i], Q[i], ctx)) ABORT;
 			}
@@ -206,7 +206,7 @@ static void speed_tests(void)
 
 	for (i=0;i<2;++i) 
 		{
-		fprintf(stdout, "Performing 10.000 doubles with algorithm %s\n", groupnames[i]);
+		fprintf(stdout, "Performing 100.000 doubles with algorithm %s\n", groupnames[i]);
 		timeval t;
 		double dt;
 		P[i] = EC_POINT_new(group[i]);
@@ -215,7 +215,7 @@ static void speed_tests(void)
 		//Timing should begin here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f);
-		for (k=0;k<10000;++k)
+		for (k=0;k<100000;++k)
 			if (!EC_POINT_dbl(group[i], P[i], P[i], ctx)) ABORT;
 		//Timing should end here
 		gettimeofday(&t, NULL);
@@ -225,7 +225,7 @@ static void speed_tests(void)
 		EC_POINT_free(P[i]);
 		}
 	
-	//Third test - DBL
+	//Third test - MUL
 	fprintf(stdout, "\n### MUL TEST ###\n\n");
 
 	for (i=0;i<2;++i) 
@@ -235,7 +235,10 @@ static void speed_tests(void)
 		double dt;
 		BIGNUM *n1;
 		n1 = BN_new();
+		BN_hex2bn(&n1, "ab");
 		P[i] = EC_POINT_new(group[i]);
+		if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], P[i], x, 0, ctx)) ABORT;
+		if (!EC_GROUP_set_generator(group[i], P[i], z, cof)) ABORT;
 		//Timing should begin here
 		gettimeofday(&t, NULL);
 		dt = t.tv_sec + (t.tv_usec/1000000.0f);
