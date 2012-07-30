@@ -84,6 +84,7 @@
 
 /* Use default functions for poin2oct, oct2point and compressed coordinates */
 #define EC_FLAGS_DEFAULT_OCT	0x1
+#define EC_FLAGS_NOGET_AFFINE   0x2
 
 /* Structure details are not part of the exported interface,
  * so all this may change in future versions. */

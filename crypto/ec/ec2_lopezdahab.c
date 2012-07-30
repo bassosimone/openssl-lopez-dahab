@@ -1,4 +1,4 @@
-/* crypto/ec/ec2_lopezdahab.c */
+	/* crypto/ec/ec2_lopezdahab.c */
 /*-
  * Copyright (c) 2012 Politecnico di Torino, Italy.
  *
@@ -32,6 +32,8 @@
 #ifdef OPENSSL_FIPS
 #include <openssl/fips.h>
 #endif
+
+#define OPENSSL_NOCONVERT 1
 
 /*
  * Lopez-Dahab context.  Contains the bignum context and the group,
@@ -461,7 +463,8 @@ int
 ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
-	return (lopezdahab_add(group, r, a, b, ctx, 1));
+	int convert = (group->meth->flags & OPENSSL_NOCONVERT)?0:1; //By default, 0
+	return (lopezdahab_add(group, r, a, b, ctx, convert));
 }
 
 /* Perform affine DBL in Lopez-Dahab coordinates */
@@ -469,28 +472,9 @@ int
 ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
-	return (lopezdahab_dbl(group, r, a, ctx, 1));
+	int convert = (group->meth->flags & OPENSSL_NOCONVERT)?0:1;
+	return (lopezdahab_dbl(group, r, a, ctx, convert));
 }
 
-/* Perform Lopez-Dahab ADD in Lopez-Dahab coordinates */
-int
-__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
-    const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
-{
-	return (lopezdahab_add(group, r, a, b, ctx, 0));
-}
-
-/* Perform Lopez-Dahab DBL in Lopez-Dahab coordinates */
-int
-__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
-    const EC_POINT *a, BN_CTX *ctx)
-{
-	return (lopezdahab_dbl(group, r, a, ctx, 0));
-}
-
-/*
- * TODO Still I don't know whether we can use the generic wNAF
- * or we need to write our custom wNAF loop.
- */
 
 #endif /* !OPENSSL_NO_EC2M */
