@@ -1,4 +1,4 @@
-	/* crypto/ec/ec2_lopezdahab.c */
+/* crypto/ec/ec2_lopezdahab.c */
 /*-
  * Copyright (c) 2012 Politecnico di Torino, Italy.
  *
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * Written by Simone Basso.
+ * Written by Simone Basso and Matteo Avalle.
  */
 
 /*
@@ -32,8 +32,6 @@
 #ifdef OPENSSL_FIPS
 #include <openssl/fips.h>
 #endif
-
-#define OPENSSL_NOCONVERT 1
 
 /*
  * Lopez-Dahab context.  Contains the bignum context and the group,
@@ -153,6 +151,10 @@ lopezdahab_finish(struct lopezdahab *ld)
  * to point to more efficient code, e.g. something like the
  * code for nistp224 by Emilia Kasper.
  */
+
+#define LOPEZDAHAB_COPY(op1, op2)					\
+	if (!BN_copy(op1, op2))						\
+		return (0)
 
 #define LOPEZDAHAB_SUM(res, op1, op2)					\
 	if (!BN_GF2m_add(res, op1, op2))				\
@@ -463,7 +465,7 @@ int
 ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
-	int convert = (group->meth->flags & OPENSSL_NOCONVERT)?0:1; //By default, 0
+	int convert = (group->meth->flags & EC_FLAGS_NOGET_AFFINE)?0:1; //By default, 0
 	return (lopezdahab_add(group, r, a, b, ctx, convert));
 }
 
@@ -472,9 +474,45 @@ int
 ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
-	int convert = (group->meth->flags & OPENSSL_NOCONVERT)?0:1;
+	int convert = (group->meth->flags & EC_FLAGS_NOGET_AFFINE)?0:1;
 	return (lopezdahab_dbl(group, r, a, ctx, convert));
 }
 
+/* Forces the given EC_POINT to internally use affine coordinates. */
+int
+ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx)
+{
+	struct	lopezdahab ldd;
+	struct	lopezdahab *ld = &ldd;
+	int	result = 0;
+
+	if (!lopezdahab_init(ld, ctx, group))
+		goto end;
+
+	if (BN_is_zero(&point->Y) && BN_is_zero(&point->Z)) {
+		//This is the point at infinity
+		if (!BN_set_word(&point->X, 1))
+			goto end;
+	} else {
+		//
+		// The point (X, Y, Z) in lopezdahab coordinates is
+		// converted to (X/Z, Y/Z^2) in affine coordinates.
+		//
+		LOPEZDAHAB_INV(&ld->ld_t0, &point->Z);
+
+		LOPEZDAHAB_MUL(&point->X, &point->X, &lt->ld_t0);
+		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
+		LOPEZDAHAB_MUL(&point->Y, &point->Y, &ld->ld_t0);
+		//
+		// Reset Z to 1
+		//
+		if (!BN_set_word(&point->Z, 1))
+			return 0;
+	}
+
+	result = 1;
+end:	lopezdahab_finish(ld);
+	return result;
+}
 
 #endif /* !OPENSSL_NO_EC2M */
