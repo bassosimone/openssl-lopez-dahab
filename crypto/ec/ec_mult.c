@@ -709,7 +709,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 		}
 	
 	ret = 1;
-
+//	fprintf(stderr, "### YEAH ###\n");
  err:
 	if (new_ctx != NULL)
 		BN_CTX_free(new_ctx);

@@ -245,6 +245,7 @@ static int
 lopezdahab_load(BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3, const BIGNUM *X1,
     const BIGNUM *Y1, const BIGNUM *Z1, int convert)
 {
+	//convert=0; //Note that everything works even with a simpler algorithm. 
 	if (!convert) {
 		/* Already in Lopez-Dahab coordinates */
 		if (!BN_copy(X3, X1))
@@ -310,7 +311,8 @@ static int
 lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
     const BIGNUM *X1, const BIGNUM *Y1, const BIGNUM *Z1, int convert)
 {
-	if (!convert) {
+	if (!convert || BN_is_one(Z1)) {
+		//fprintf(stderr, "--R''\n");
 		/* Stay in Lopez-Dahab coordinates */
 		if (!BN_copy(X3, X1))
 			return (0);
@@ -319,6 +321,7 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 		if (!BN_copy(Z3, Z1))
 			return (0);
 	} else if (BN_is_zero(Z1)) {
+		//fprintf(stderr, "--X,,\n");
 		/*
 		 * When the input point is the point at the
 		 * infinity (identified by Z=0 in Lopez-
@@ -334,6 +337,7 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 		if (!BN_set_word(Z3, 0))
 			return (0);
 	} else {
+		//fprintf(stderr,"--Q..\n");
 		/*
 		 * The point (X, Y, Z) in lopezdahab coordinates is
 		 * converted to (X/Z, Y/Z^2) in affine coordinates.
@@ -382,8 +386,12 @@ lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 	 * NB: The double of the point at infinity is the point at
 	 * infinity.
 	 */
-	if (convert && EC_POINT_is_at_infinity(group, a))
+	//if (convert && EC_POINT_is_at_infinity(group, a))
+	if (EC_POINT_is_at_infinity(group, a))
 		return (EC_POINT_set_to_infinity(group, r));
+
+	//Debug platform
+	//if (EC_POINT_is_at_infinity(group,a)) if (!convert) { fprintf(stderr, "Oich\n"); return (EC_POINT_set_to_infinity(group, r)); }
 
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
@@ -406,7 +414,6 @@ lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 {
 	struct	lopezdahab ld;
 	int	result = 0;
-
 	/*
 	 * When the input is already in Lopez-Dahab coordinates
 	 * don't bother with checking for corner cases because we
@@ -414,7 +421,7 @@ lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 	 * MUL and that the caller has provided a "good" point,
 	 * so we'll never get to the point at infinity.
 	 */
-	if (convert) {
+	//if (convert) {
 		/*
 		 * When one of the two points is at infinity
 		 * the result is the other point.
@@ -438,8 +445,16 @@ lopezdahab_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
 				return (lopezdahab_dbl(group, r, a,
 				    ctx, convert));
 		}
+	//}
+	
+	//Debug platform
+/*	if (EC_POINT_is_at_infinity(group,a)) if (!convert) { fprintf(stderr, "Ouch_1\n"); return (EC_POINT_copy(r, b)); }
+	if (EC_POINT_is_at_infinity(group,b)) if (!convert) { fprintf(stderr, "Ouch_2\n"); return (EC_POINT_copy(r, a)); }
+	if (BN_cmp(&a->X, &b->X) == 0) {
+		if (BN_cmp(&a->Y, &b->Y) != 0) { if (!convert) { fprintf(stderr, "Ouch_3\n"); return (EC_POINT_set_to_infinity(group, r)); } }
+		else { if (!convert) { fprintf(stderr, "Ouch_4\n"); return (lopezdahab_dbl(group, r, a, ctx, convert)); } }
 	}
-
+*/
 	if (!lopezdahab_init(&ld, ctx, group))
 		goto end;
 	if (!lopezdahab_load_P1(&ld, &a->X, &a->Y, &a->Z, convert))
@@ -465,7 +480,7 @@ int
 ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
-	int convert = (group->meth->flags & EC_FLAGS_NOGET_AFFINE)?0:1; //By default, 0
+	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1; //By default, 0
 	return (lopezdahab_add(group, r, a, b, ctx, convert));
 }
 
@@ -474,7 +489,7 @@ int
 ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
-	int convert = (group->meth->flags & EC_FLAGS_NOGET_AFFINE)?0:1;
+	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1;
 	return (lopezdahab_dbl(group, r, a, ctx, convert));
 }
 
@@ -489,10 +504,14 @@ ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *c
 	if (!lopezdahab_init(ld, ctx, group))
 		goto end;
 
-	if (BN_is_zero(&point->Y) && BN_is_zero(&point->Z)) {
+	if (BN_is_zero(&point->Z)) {
 		//This is the point at infinity
 		if (!BN_set_word(&point->X, 1))
 			goto end;
+		if (!BN_set_word(&point->Y, 0))
+			goto end;
+	} else if (BN_is_one(&point->Z)) {
+		//Already OK. cut it here
 	} else {
 		//
 		// The point (X, Y, Z) in lopezdahab coordinates is
@@ -500,7 +519,7 @@ ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *c
 		//
 		LOPEZDAHAB_INV(&ld->ld_t0, &point->Z);
 
-		LOPEZDAHAB_MUL(&point->X, &point->X, &lt->ld_t0);
+		LOPEZDAHAB_MUL(&point->X, &point->X, &ld->ld_t0);
 		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
 		LOPEZDAHAB_MUL(&point->Y, &point->Y, &ld->ld_t0);
 		//
@@ -514,5 +533,30 @@ ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *c
 end:	lopezdahab_finish(ld);
 	return result;
 }
+
+/* The onlu particular thing that is needed to perform during multiplication is to 
+   internally disable the conversion to affine coordinates during multiplication.
+   For this reason, this is just a simple wrapper that sets some flags, recall the
+   original multiplication code and that converts the result in affine coordinates.
+*/
+int
+ec_GF2m_lopezdahab_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar, size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx) 
+{
+	int	result = 0;
+	*group->flags |= EC_FLAGS_NOGET_AFFINE;
+	
+	if (!ec_GF2m_simple_mul(group, r, scalar, num, points, scalars, ctx))
+		goto end;
+
+	*group->flags -= EC_FLAGS_NOGET_AFFINE;
+	if (!group->meth->make_affine(group, r, ctx))
+		goto end;
+
+	result = 1;
+//	fprintf(stderr, "### OK!! ### \n");
+end:	return result;
+
+}
+
 
 #endif /* !OPENSSL_NO_EC2M */

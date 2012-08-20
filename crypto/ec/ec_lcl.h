@@ -189,6 +189,7 @@ typedef struct ec_extra_data_st {
 
 struct ec_group_st {
 	const EC_METHOD *meth;
+	int *flags;
 
 	EC_POINT *generator; /* optional */
 	BIGNUM order, cofactor;
@@ -398,6 +399,8 @@ int ec_GF2m_simple_field_div(const EC_GROUP *, BIGNUM *r, const BIGNUM *a, const
  */
 int ec_GF2m_lopezdahab_add(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, BN_CTX *);
 int ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_CTX *);
+int ec_GF2m_lopezdahab_mul(const EC_GROUP *, EC_POINT *r, const BIGNUM *scalar, 
+	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx);
 int ec_GF2m_lopezdahab_make_affine(const EC_GROUP *, EC_POINT *, BN_CTX *);
 
 
