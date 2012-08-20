@@ -226,23 +226,38 @@ static void speed_tests(void)
 		}
 	
 	//Third test - MUL
-	fprintf(stdout, "\n### MUL TEST ###\n\n");
-
-	for (i=0;i<2;++i) 
+	int OPERANDS;
+	EC_POINT *points[10];
+	BIGNUM *scalars[10];
+	for (OPERANDS = 2; OPERANDS <= 10; OPERANDS+=2) 
+	  {
+	  //Initialization
+  	  fprintf(stdout, "\n### MUL TEST (%d) ###\n\n", OPERANDS);
+	  for (i=0;i<2;++i) 
 		{
+		int c;
+	  	for (c=0;c<OPERANDS;++c)
+			{
+			BIGNUM *py = (BIGNUM *)malloc(sizeof(BIGNUM));
+			BN_pseudo_rand(py, BN_num_bits(y), 0, 0);
+			scalars[c] = py;
+			points[c] = EC_POINT_new(group[i]);
+			EC_POINT_set_compressed_coordinates_GF2m(group[i], points[c], x, 0, ctx);
+			EC_POINT_mul(group[i], points[c], NULL, points[c], py, ctx);
+			}
 		fprintf(stdout, "Performing 10.000 mul with algorithm %s\n", groupnames[i]);
 		timeval at, bt;
 		double dt;
-		BIGNUM *n1;
-		n1 = BN_new();
-		BN_hex2bn(&n1, "ab");
+		//BIGNUM *n1;
+		//n1 = BN_new();
+		//BN_hex2bn(&n1, "ab");
 		P[i] = EC_POINT_new(group[i]);
-		if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], P[i], x, 0, ctx)) ABORT;
-		if (!EC_GROUP_set_generator(group[i], P[i], z, cof)) ABORT;
+		//if (!EC_POINT_set_compressed_coordinates_GF2m(group[i], P[i], x, 0, ctx)) ABORT;
+		//if (!EC_GROUP_set_generator(group[i], P[i], z, cof)) ABORT;
 		//Timing should begin here
 		gettimeofday(&at, NULL);
 		for (k=0;k<10000;++k)
-			if (!EC_POINT_mul(group[i], P[i], NULL, P[i], n1, ctx)) ABORT;
+			if (!EC_POINTs_mul(group[i], P[i], NULL, OPERANDS, (const EC_POINT **)points, (const BIGNUM **)scalars, ctx)) ABORT;
 		//Timing should end here
 		gettimeofday(&bt, NULL);
 		dt = (bt.tv_sec - at.tv_sec) * 1000.0;
@@ -250,8 +265,14 @@ static void speed_tests(void)
 		fprintf(stdout, "Taken time: %lf s\n", dt);
 
 		EC_POINT_free(P[i]);
-		BN_free(n1);
+		//BN_free(n1);
+	  	for (c=0;c<OPERANDS;++c)
+			{
+			free(scalars[c]);
+			EC_POINT_free(points[c]);
+			}
 		}
+	  }
 	//Clean everything up
 	if (ctx) BN_CTX_free(ctx);
 	BN_free(p); BN_free(a); BN_free(b); BN_free(x); BN_free(y); BN_free(z); BN_free(cof);
