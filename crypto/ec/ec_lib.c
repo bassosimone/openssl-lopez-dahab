@@ -96,7 +96,8 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 		}
 
 	ret->meth = meth;
-
+	ret->flags = OPENSSL_malloc(sizeof(int));
+	*ret->flags = 0;
 	ret->extra_data = NULL;
 
 	ret->generator = NULL;
@@ -137,6 +138,7 @@ void EC_GROUP_free(EC_GROUP *group)
 	if (group->seed)
 		OPENSSL_free(group->seed);
 
+	OPENSSL_free(group->flags);
 	OPENSSL_free(group);
 	}
  

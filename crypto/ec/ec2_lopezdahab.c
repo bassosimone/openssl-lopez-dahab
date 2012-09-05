@@ -449,7 +449,8 @@ int
 ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
-	return (lopezdahab_add(group, r, a, b, ctx, 1));
+	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1; 
+	return (lopezdahab_add(group, r, a, b, ctx, convert));
 }
 
 /* Perform affine DBL in Lopez-Dahab coordinates */
@@ -457,7 +458,8 @@ int
 ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
-	return (lopezdahab_dbl(group, r, a, ctx, 1));
+	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1;
+	return (lopezdahab_dbl(group, r, a, ctx, convert));
 }
 
 /* Forces the given EC_POINT to internally use affine coordinates. */
@@ -501,22 +503,6 @@ ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *c
 
 end:	lopezdahab_finish(ld);
 	return result;
-}
-
-/* Perform Lopez-Dahab ADD in Lopez-Dahab coordinates */
-int
-__ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
-    const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
-{
-	return (lopezdahab_add(group, r, a, b, ctx, 0));
-}
-
-/* Perform Lopez-Dahab DBL in Lopez-Dahab coordinates */
-int
-__ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
-    const EC_POINT *a, BN_CTX *ctx)
-{
-	return (lopezdahab_dbl(group, r, a, ctx, 0));
 }
 
 

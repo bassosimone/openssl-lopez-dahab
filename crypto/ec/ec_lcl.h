@@ -188,6 +188,7 @@ typedef struct ec_extra_data_st {
 
 struct ec_group_st {
 	const EC_METHOD *meth;
+	int *flags;
 
 	EC_POINT *generator; /* optional */
 	BIGNUM order, cofactor;
