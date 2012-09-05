@@ -505,6 +505,23 @@ end:	lopezdahab_finish(ld);
 	return result;
 }
 
+/* Performs MUL in lopez-dahab coordinates */
+int
+ec_GF2m_lopezdahab_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar, size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx) 
+{
+	int	result = 0;
+	*group->flags |= EC_FLAGS_NOGET_AFFINE;
+
+	if (!ec_GF2m_simple_mul(group, r, scalar, num, points, scalars, ctx))
+		goto end;
+
+	*group->flags -= EC_FLAGS_NOGET_AFFINE;
+	if (!group->meth->make_affine(group, r, ctx))
+		goto end;
+
+	result = 1;
+end:	return result;
+}
 
 
 #endif /* !OPENSSL_NO_EC2M */
