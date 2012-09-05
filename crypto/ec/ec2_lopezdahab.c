@@ -460,6 +460,49 @@ ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
 	return (lopezdahab_dbl(group, r, a, ctx, 1));
 }
 
+/* Forces the given EC_POINT to internally use affine coordinates. */
+int
+ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx)
+{
+	struct lopezdahab ldd;
+	struct lopezdahab *ld = &ldd;
+	int result = 0;
+
+	if (!lopezdahab_init(ld, ctx, group))
+		goto end;
+
+	if (BN_is_zero(&point->Z)) {
+		//This is the point at infinity
+		if (!BN_set_word(&point->X, 1))
+			goto end;
+		if (!BN_set_word(&point->Y, 0))
+			goto end;
+	} else if (BN_is_one(&point->Z)) {
+		//Already OK. Cut it here
+	} else {
+		//
+		// The point (X, Y, Z) in lopezdahab coordinates is
+		// converted to (X/Z, Y/Z^2) in affine coordinates.
+		//
+		LOPEZDAHAB_INV(&ld->ld_t0, &point->Z);
+
+		LOPEZDAHAB_MUL(&point->X, &point->X, &ld->ld_t0);
+		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
+		LOPEZDAHAB_MUL(&point->Y, &point->Y, &ld->ld_t0);
+
+		//
+		// Reset Z to 1
+		//
+		if (!BN_set_word(&point->Z, 1))
+			goto end;
+	}
+
+	result = 1;
+
+end:	lopezdahab_finish(ld);
+	return result;
+}
+
 /* Perform Lopez-Dahab ADD in Lopez-Dahab coordinates */
 int
 __ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
@@ -476,9 +519,6 @@ __ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
 	return (lopezdahab_dbl(group, r, a, ctx, 0));
 }
 
-/*
- * TODO Still I don't know whether we can use the generic wNAF
- * or we need to write our custom wNAF loop.
- */
+
 
 #endif /* !OPENSSL_NO_EC2M */

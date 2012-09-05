@@ -395,8 +395,9 @@ int ec_GF2m_simple_field_div(const EC_GROUP *, BIGNUM *r, const BIGNUM *a, const
  * Method functions in ec2_lopezdahab.c: the ones with two leading
  * underscores should not convert from/to Lopez-Dahab coords.
  */
-int ec_GF2m_lopezdahab_add(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, BN_CTX *);
-int ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_CTX *);
+int ec_GF2m_lopezdahab_add			(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, 	BN_CTX *);
+int ec_GF2m_lopezdahab_dbl			(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, 						BN_CTX *);
+int ec_GF2m_lopezdahab_make_affine	(const EC_GROUP *, EC_POINT *r, 										BN_CTX *);
 int __ec_GF2m_lopezdahab_add(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, BN_CTX *);
 int __ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_CTX *);
 
