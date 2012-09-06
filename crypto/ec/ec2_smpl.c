@@ -77,11 +77,14 @@
 #include <openssl/fips.h>
 #endif
 
+#define OPENSSL_LOPEZDAHAB
 
 const EC_METHOD *EC_GF2m_simple_method(void)
 	{
 #ifdef OPENSSL_FIPS
 	return fips_ec_gf2m_simple_method();
+#elif OPENSSL_LOPEZDAHAB
+	return lopezdahab_ec_gf2m_simple_method();
 #else
 	static const EC_METHOD ret = {
 		EC_FLAGS_DEFAULT_OCT,
@@ -104,17 +107,17 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 		ec_GF2m_simple_point_set_affine_coordinates,
 		ec_GF2m_simple_point_get_affine_coordinates,
 		0,0,0,
-		ec_GF2m_lopezdahab_add,
-		ec_GF2m_lopezdahab_dbl,
+		ec_GF2m_simple_add,
+		ec_GF2m_simple_dbl,
 		ec_GF2m_simple_invert,
 		ec_GF2m_simple_is_at_infinity,
 		ec_GF2m_simple_is_on_curve,
 		ec_GF2m_simple_cmp,
-		ec_GF2m_lopezdahab_make_affine,
+		ec_GF2m_simple_make_affine,
 		ec_GF2m_simple_points_make_affine,
 
 		/* the following three method functions are defined in ec2_mult.c */
-		ec_GF2m_lopezdahab_mul,
+		ec_GF2m_simple_mul,
 		ec_GF2m_precompute_mult,
 		ec_GF2m_have_precompute_mult,
 

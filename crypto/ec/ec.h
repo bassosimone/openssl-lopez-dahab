@@ -177,7 +177,7 @@ const EC_METHOD *EC_GFp_nistp521_method(void);
  *  \return  EC_METHOD object
  */
 const EC_METHOD *EC_GF2m_simple_method(void);
-
+const EC_METHOD *lopezdahab_ec_gf2m_simple_method(void);
 #endif
 
 

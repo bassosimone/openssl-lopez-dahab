@@ -94,6 +94,55 @@ struct lopezdahab {
 
 #define			LOPEZDAHAB_F_CTX (1<<0)		/* must free() ctx */
 
+const EC_METHOD *lopezdahab_ec_gf2m_simple_method(void)
+	{
+	static const EC_METHOD ret = {
+		EC_FLAGS_DEFAULT_OCT,
+		NID_X9_62_characteristic_two_field,
+		ec_GF2m_simple_group_init,
+		ec_GF2m_simple_group_finish,
+		ec_GF2m_simple_group_clear_finish,
+		ec_GF2m_simple_group_copy,
+		ec_GF2m_simple_group_set_curve,
+		ec_GF2m_simple_group_get_curve,
+		ec_GF2m_simple_group_get_degree,
+		ec_GF2m_simple_group_check_discriminant,
+		ec_GF2m_simple_point_init,
+		ec_GF2m_simple_point_finish,
+		ec_GF2m_simple_point_clear_finish,
+		ec_GF2m_simple_point_copy,
+		ec_GF2m_simple_point_set_to_infinity,
+		0 /* set_Jprojective_coordinates_GFp */,
+		0 /* get_Jprojective_coordinates_GFp */,
+		ec_GF2m_simple_point_set_affine_coordinates,
+		ec_GF2m_simple_point_get_affine_coordinates,
+		0,0,0,
+		ec_GF2m_lopezdahab_add,
+		ec_GF2m_lopezdahab_dbl,
+		ec_GF2m_simple_invert,
+		ec_GF2m_simple_is_at_infinity,
+		ec_GF2m_simple_is_on_curve,
+		ec_GF2m_simple_cmp,
+		ec_GF2m_lopezdahab_make_affine,
+		ec_GF2m_simple_points_make_affine,
+
+		/* the following three method functions are defined in ec2_mult.c */
+		ec_GF2m_lopezdahab_mul,
+		ec_GF2m_precompute_mult,
+		ec_GF2m_have_precompute_mult,
+
+		ec_GF2m_simple_field_mul,
+		ec_GF2m_simple_field_sqr,
+		ec_GF2m_simple_field_div,
+		0 /* field_encode */,
+		0 /* field_decode */,
+		0 /* field_set_to_one */ };
+
+	return &ret;
+	}
+
+
+
 /* Just in case it was not defined */
 #ifndef nitems
 #  define nitems(_x)	(sizeof((_x)) / sizeof((_x)[0]))
