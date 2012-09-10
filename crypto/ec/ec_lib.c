@@ -97,6 +97,12 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 
 	ret->meth = meth;
 	ret->flags = OPENSSL_malloc(sizeof(int));
+	if (ret->flags == NULL)
+		{
+		ECerr(EC_F_EC_GROUP_NEW, EC_R_MALLOC_FAILURE);
+		return NULL;
+		}
+
 	*ret->flags = 0;
 	ret->extra_data = NULL;
 
@@ -113,6 +119,7 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 
 	if (!meth->group_init(ret))
 		{
+		OPENSSL_free(ret->flags);
 		OPENSSL_free(ret);
 		return NULL;
 		}
@@ -166,6 +173,7 @@ void EC_GROUP_clear_free(EC_GROUP *group)
 		}
 
 	OPENSSL_cleanse(group, sizeof *group);
+	OPENSSL_free(group->flags);
 	OPENSSL_free(group);
 	}
 
@@ -173,6 +181,8 @@ void EC_GROUP_clear_free(EC_GROUP *group)
 int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
 	{
 	EC_EXTRA_DATA *d;
+
+	*dest->flags = *src->flags;
 
 	if (dest->meth->group_copy == 0)
 		{

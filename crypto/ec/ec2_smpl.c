@@ -77,13 +77,14 @@
 #include <openssl/fips.h>
 #endif
 
-#define OPENSSL_LOPEZDAHAB
+//#define OPENSSL_NO_LOPEZDAHAB
 
 const EC_METHOD *EC_GF2m_simple_method(void)
 	{
 #ifdef OPENSSL_FIPS
 	return fips_ec_gf2m_simple_method();
-#elif OPENSSL_LOPEZDAHAB
+#elif
+#ifndef OPENSSL_NO_LOPEZDAHAB
 	return lopezdahab_ec_gf2m_simple_method();
 #else
 	static const EC_METHOD ret = {
@@ -129,6 +130,7 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 		0 /* field_set_to_one */ };
 
 	return &ret;
+#endif
 #endif
 	}
 

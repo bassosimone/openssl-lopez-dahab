@@ -126,8 +126,8 @@ const EC_METHOD *lopezdahab_ec_gf2m_simple_method(void)
 		ec_GF2m_lopezdahab_make_affine,
 		ec_GF2m_simple_points_make_affine,
 
-		/* the following three method functions are defined in ec2_mult.c */
 		ec_GF2m_lopezdahab_mul,
+		/* the following two method functions are defined in ec2_mult.c */
 		ec_GF2m_precompute_mult,
 		ec_GF2m_have_precompute_mult,
 
@@ -200,10 +200,6 @@ lopezdahab_finish(struct lopezdahab *ld)
  * to point to more efficient code, e.g. something like the
  * code for nistp224 by Emilia Kasper.
  */
-
-#define LOPEZDAHAB_COPY(op1, op2)					\
-	if (!BN_copy(op1, op2))						\
-		return (0)
 
 #define LOPEZDAHAB_SUM(res, op1, op2)					\
 	if (!BN_GF2m_add(res, op1, op2))				\
@@ -511,7 +507,7 @@ ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
 	return (lopezdahab_dbl(group, r, a, ctx, convert));
 }
 
-/* Forces the given EC_POINT to internally use affine coordinates. */
+/* Converts the given EC_POINT to affine coordinates. */
 int
 ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx)
 {
@@ -523,27 +519,27 @@ ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *c
 		goto end;
 
 	if (BN_is_zero(&point->Z)) {
-		//This is the point at infinity
+		/* This is the point at infinity */
 		if (!BN_set_word(&point->X, 1))
 			goto end;
 		if (!BN_set_word(&point->Y, 0))
 			goto end;
 	} else if (BN_is_one(&point->Z)) {
-		//Already OK. Cut it here
+		/* Already OK. Cut it here */
 	} else {
-		//
-		// The point (X, Y, Z) in lopezdahab coordinates is
-		// converted to (X/Z, Y/Z^2) in affine coordinates.
-		//
+		/*
+		 * The point (X, Y, Z) in lopezdahab coordinates is
+		 * converted to (X/Z, Y/Z^2) in affine coordinates.
+		 */
 		LOPEZDAHAB_INV(&ld->ld_t0, &point->Z);
 
 		LOPEZDAHAB_MUL(&point->X, &point->X, &ld->ld_t0);
 		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
 		LOPEZDAHAB_MUL(&point->Y, &point->Y, &ld->ld_t0);
 
-		//
-		// Reset Z to 1
-		//
+		/*
+		 * Reset Z to 1
+		 */
 		if (!BN_set_word(&point->Z, 1))
 			goto end;
 	}
@@ -564,7 +560,7 @@ ec_GF2m_lopezdahab_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 	if (!ec_GF2m_simple_mul(group, r, scalar, num, points, scalars, ctx))
 		goto end;
 
-	*group->flags -= EC_FLAGS_NOGET_AFFINE;
+	*group->flags &= ~EC_FLAGS_NOGET_AFFINE;
 	if (!group->meth->make_affine(group, r, ctx))
 		goto end;
 

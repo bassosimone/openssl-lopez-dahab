@@ -85,7 +85,8 @@
 /* Use default functions for poin2oct, oct2point and compressed coordinates */
 #define EC_FLAGS_DEFAULT_OCT	0x1
 
-/* This flag can be set to the meth->flags variable to disable conversion to affine coordinates after each ADD/DBL */
+/* This flag can be set to the meth->flags variable to disable conversion to 
+ * affine coordinates after each ADD/DBL. */
 #define EC_FLAGS_NOGET_AFFINE   0x2
 
 /* Structure details are not part of the exported interface,
@@ -395,22 +396,12 @@ int ec_GF2m_simple_field_mul(const EC_GROUP *, BIGNUM *r, const BIGNUM *a, const
 int ec_GF2m_simple_field_sqr(const EC_GROUP *, BIGNUM *r, const BIGNUM *a, BN_CTX *);
 int ec_GF2m_simple_field_div(const EC_GROUP *, BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *);
 
-/*
- * Method functions in ec2_lopezdahab.c: the ones with two leading
- * underscores should not convert from/to Lopez-Dahab coords.
- */
-int ec_GF2m_lopezdahab_add			(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, 	BN_CTX *ctx);
-int ec_GF2m_lopezdahab_dbl			(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, 						BN_CTX *ctx);
-int ec_GF2m_lopezdahab_mul			(const EC_GROUP *, EC_POINT *r, const BIGNUM *scalar,
-									 size_t num, const EC_POINT *points[], const BIGNUM *scalars[], 		BN_CTX *ctx);
-int ec_GF2m_lopezdahab_make_affine	(const EC_GROUP *, EC_POINT *r, 										BN_CTX *ctx);
-
-
-/* method functions in ec2_mult.c */
-int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
-	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *);
-int ec_GF2m_precompute_mult(EC_GROUP *group, BN_CTX *ctx);
-int ec_GF2m_have_precompute_mult(const EC_GROUP *group);
+/* method functions in ec2_lopezdahab.c  */
+int ec_GF2m_lopezdahab_add(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx);
+int ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_CTX *ctx);
+int ec_GF2m_lopezdahab_mul(const EC_GROUP *, EC_POINT *r, const BIGNUM *scalar, 
+	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx);
+int ec_GF2m_lopezdahab_make_affine(const EC_GROUP *, EC_POINT *r, BN_CTX *ctx);
 
 /* method functions in ec2_mult.c */
 int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
