@@ -159,7 +159,7 @@ void base_tests(void)
 	if (!EC_GROUP_set_generator(group, P, z, cof)) ABORT;
 	if (!EC_POINT_set_compressed_coordinates_GF2m(group, Q, z, 0, ctx)) ABORT;
 
-	
+goto mul;	
 	//Timing loop begins here
 		{
 		timeval at,bt;
@@ -197,13 +197,13 @@ void base_tests(void)
 
 	//MUL test - Measure how many MUL can be performed in a fixed amount of seconds. Tests performed with
 	//			 multiple combined multiplications (to exploit the wNAF algorithm)
-
+mul:
 		{
 		int OPERANDS;
 		EC_POINT *points[10];
 		BIGNUM *scalars[10];
 
-		for (OPERANDS = 2; OPERANDS <= 10; OPERANDS+=2) 
+		for (OPERANDS = 1; OPERANDS <= 7; OPERANDS+=1) 
 			{
 			//Initialization
 			int c;
@@ -214,15 +214,17 @@ void base_tests(void)
 				scalars[c] = py;
 				points[c] = EC_POINT_new(group);
 				EC_POINT_set_compressed_coordinates_GF2m(group, points[c], x, 0, ctx);
-				EC_POINT_mul(group, points[c], NULL, points[c], py, ctx);
+				//EC_POINT_mul(group, points[c], NULL, points[c], py, ctx);
 				}
 			timeval at,bt;
 			long count = 0;
 			gettimeofday(&at, NULL);
 
+			if (!EC_GROUP_precompute_mult(group, ctx)) ABORT;
 			while (true)
 				{
-				if (!EC_POINTs_mul(group, points[0], NULL, OPERANDS, (const EC_POINT **)points, (const BIGNUM **)scalars, ctx)) ABORT;
+				//if (!EC_POINTs_mul(group, points[0], scalars[0], OPERANDS-1, (const EC_POINT **)(points+1), (const BIGNUM **)(scalars+1), ctx)) ABORT;
+				if (!EC_POINTs_mul(group, points[0], NULL, OPERANDS, (const EC_POINT **)(points), (const BIGNUM **)(scalars), ctx)) ABORT;
 				gettimeofday(&bt, NULL);
 				if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
 				count++;

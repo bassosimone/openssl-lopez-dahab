@@ -296,6 +296,8 @@ struct ec_point_st {
  * (ec_lib.c uses these as defaults if group->method->mul is 0) */
 int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *);
+int ec_lopezdahab_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
+	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *);
 int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *);
 int ec_wNAF_have_precompute_mult(const EC_GROUP *group);
 
@@ -402,6 +404,8 @@ int ec_GF2m_lopezdahab_dbl(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_
 int ec_GF2m_lopezdahab_mul(const EC_GROUP *, EC_POINT *r, const BIGNUM *scalar, 
 	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx);
 int ec_GF2m_lopezdahab_make_affine(const EC_GROUP *, EC_POINT *r, BN_CTX *ctx);
+int lopezdahab_dbl_a(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a, BN_CTX *ctx);
+int opezdahab_add_a(const EC_GROUP *, EC_POINT *r, const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx);
 
 /* method functions in ec2_mult.c */
 int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,

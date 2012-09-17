@@ -99,7 +99,7 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 	ret->flags = OPENSSL_malloc(sizeof(int));
 	if (ret->flags == NULL)
 		{
-		ECerr(EC_F_EC_GROUP_NEW, EC_R_MALLOC_FAILURE);
+		ECerr(EC_F_EC_GROUP_NEW, ERR_R_MALLOC_FAILURE);
 		return NULL;
 		}
 

@@ -83,7 +83,7 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 	{
 #ifdef OPENSSL_FIPS
 	return fips_ec_gf2m_simple_method();
-#elif
+#else
 #ifndef OPENSSL_NO_LOPEZDAHAB
 	return lopezdahab_ec_gf2m_simple_method();
 #else
