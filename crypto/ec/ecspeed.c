@@ -89,6 +89,7 @@ int main(int argc, char * argv[]) { puts("Elliptic curves are disabled."); retur
 
 
 #include <openssl/ec.h>
+#include "ec_lcl.h"
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif
@@ -122,7 +123,9 @@ void base_tests(void)
 	BN_CTX *ctx = NULL;
 	BIGNUM *p, *a, *b, *x, *y, *z, *cof;
 	EC_GROUP *group;
+	EC_GROUP *lgroup; //Lopez-dahab equivalent version
 	EC_POINT *P, *Q;
+	EC_POINT *lP, *lQ; //Lopez-dahab equivalent version
 	
 	//Initialization
 	ctx = BN_CTX_new();
@@ -147,9 +150,11 @@ void base_tests(void)
 
 	//Initializing the EC_GROUP
 	group = EC_GROUP_new(EC_GF2m_simple_method());
-	if (!group) ABORT;
+	lgroup = EC_GROUP_new(EC_GF2m_lopezdahab_method());
+	if (!group || !lgroup) ABORT;
 
 	if (!EC_GROUP_set_curve_GF2m(group, p, a, b, ctx)) ABORT;
+	if (!EC_GROUP_set_curve_GF2m(lgroup, p, a, b, ctx)) ABORT;
 
 	//ADD test - Measure how many ADD can be performed in a fixed amount of seconds.
 
@@ -159,7 +164,108 @@ void base_tests(void)
 	if (!EC_GROUP_set_generator(group, P, z, cof)) ABORT;
 	if (!EC_POINT_set_compressed_coordinates_GF2m(group, Q, z, 0, ctx)) ABORT;
 
-goto mul;	
+	lP = EC_POINT_new(lgroup);
+	lQ = EC_POINT_new(lgroup);
+	if (!EC_POINT_set_compressed_coordinates_GF2m(lgroup, lP, x, 0, ctx)) ABORT;
+	if (!EC_GROUP_set_generator(lgroup, lP, z, cof)) ABORT;
+	if (!EC_POINT_set_compressed_coordinates_GF2m(lgroup, lQ, z, 0, ctx)) ABORT;
+
+	//Some extra tests:
+
+	{
+	timeval at, bt;
+	long count=0;
+	gettimeofday(&at, NULL);
+	BIGNUM *pa = BN_new();
+	BIGNUM *pb = BN_new();
+	if (!BN_rand(pa, BN_num_bits(y), 0, 0)) ABORT;
+	if (!BN_rand(pb, BN_num_bits(y), 0, 0)) ABORT;
+
+	while(true) 
+		{
+		if (!BN_GF2m_add(pa, pa, pb)) ABORT;
+		gettimeofday(&bt, NULL);
+		if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+1000) break;
+		count++;
+		}
+	fprintf(stdout, "BN ADD terminated. %.1lf ADDs per second performed\n", count/1.0f);
+	BN_free(pa);
+	BN_free(pb);
+	}
+	{
+	timeval at, bt;
+	long count=0;
+	gettimeofday(&at, NULL);
+	BIGNUM *pa = BN_new();
+	BIGNUM *pb = BN_new();
+	if (!BN_rand(pa, BN_num_bits(y), 0, 0)) ABORT;
+	if (!BN_rand(pb, BN_num_bits(y), 0, 0)) ABORT;
+
+	while(true) 
+		{
+		if (!BN_GF2m_mod_mul_arr(pa, pa, pb, group->poly, ctx)) ABORT;
+		gettimeofday(&bt, NULL);
+		if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+1000) break;
+		count++;
+		}
+	fprintf(stdout, "BN MOD_MUL terminated. %.1lf MULs per second performed\n", count/1.0f);
+	BN_free(pa);
+	BN_free(pb);
+	}
+	{
+	timeval at, bt;
+	long count=0;
+	gettimeofday(&at, NULL);
+	BIGNUM *pa = BN_new();
+	if (!BN_rand(pa, BN_num_bits(y), 0, 0)) ABORT;
+
+	while(true) 
+		{
+		if (!BN_GF2m_mod_inv(pa, pa, &group->field, ctx)) ABORT;
+		gettimeofday(&bt, NULL);
+		if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+1000) break;
+		count++;
+		}
+	fprintf(stdout, "BN MOD_INV terminated. %.1lf INVs per second performed\n", count/1.0f);
+	BN_free(pa);
+	}
+	{
+	timeval at, bt;
+	long count=0;
+	gettimeofday(&at, NULL);
+	BIGNUM *pa = BN_new();
+	BIGNUM *pb = BN_new();
+	if (!BN_rand(pa, BN_num_bits(y), 0, 0)) ABORT;
+	if (!BN_rand(pb, BN_num_bits(y), 0, 0)) ABORT;
+
+	while(true) 
+		{
+		if (!BN_GF2m_mod_div(pa, pa, pb, &group->field, ctx)) ABORT;
+		gettimeofday(&bt, NULL);
+		if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+1000) break;
+		count++;
+		}
+	fprintf(stdout, "BN MOD_DIV terminated. %.1lf DIVs per second performed\n", count/1.0f);
+	BN_free(pa);
+	BN_free(pb);
+	}
+	{
+	timeval at, bt;
+	long count=0;
+	gettimeofday(&at, NULL);
+	BIGNUM *pa = BN_new();
+	if (!BN_rand(pa, BN_num_bits(y), 0, 0)) ABORT;
+
+	while(true) 
+		{
+		if (!BN_GF2m_mod_sqr_arr(pa, pa, group->poly, ctx)) ABORT;
+		gettimeofday(&bt, NULL);
+		if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+1000) break;
+		count++;
+		}
+	fprintf(stdout, "BN MOD_SQR terminated. %.1lf SQRs per second performed\n", count/1.0f);
+	BN_free(pa);
+	}
 	//Timing loop begins here
 		{
 		timeval at,bt;
@@ -172,13 +278,31 @@ goto mul;
 			if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
 			count++;
 			}
-		fprintf(stdout, "ADD test terminated. %.1lf ADDs per second performed\n", count/10.0f);
+		fprintf(stdout, "(Affine coords)\nADD test terminated. %.1lf ADDs per second performed\n", count/10.0f);
+		}
+
+		//Equivalent in lopez-dahab coords
+		{
+		timeval at,bt;
+		long count = 0;
+		gettimeofday(&at, NULL);
+		while (true) 
+			{
+			if (!EC_POINT_add(lgroup, lP, lP, lQ, ctx)) ABORT;
+			gettimeofday(&bt, NULL);
+			if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
+			count++;
+			}
+		fprintf(stdout, "(Lopezdahab coords)\nADD test terminated. %.1lf ADDs per scond performed\n", count/10.0f);
 		}
 
 	//DBL test - Measure how many ADD can be performed in a fixed amount of seconds.
 
 	if (!EC_POINT_set_compressed_coordinates_GF2m(group, P, x, 0, ctx)) ABORT;
 	if (!EC_GROUP_set_generator(group, P, z, cof)) ABORT;
+
+	if (!EC_POINT_set_compressed_coordinates_GF2m(lgroup, lP, x, 0, ctx)) ABORT;
+	if (!EC_GROUP_set_generator(lgroup, lP, z, cof)) ABORT;
 
 	//Timing loop begins here
 		{
@@ -192,12 +316,25 @@ goto mul;
 			if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
 			count++;
 			}
-		fprintf(stdout, "DBL test terminated. %.1lf DBLs per second performed\n", count/10.0f);
+		fprintf(stdout, "(Affine coords)\nDBL test terminated. %.1lf DBLs per second performed\n", count/10.0f);
 		}
 
+		//Equivalent in lopez-dahab coordis
+		{
+		timeval at,bt;
+		long count = 0;
+		gettimeofday(&at, NULL);
+		while (true) 
+			{
+			if (!EC_POINT_dbl(lgroup, lP, lP, ctx)) ABORT;
+			gettimeofday(&bt, NULL);
+			if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
+			count++;
+			}
+		fprintf(stdout, "(Lopezdahab coords)\nDBL test terminated. %.1lf DBLs per second performed\n", count/10.0f);
+		}
 	//MUL test - Measure how many MUL can be performed in a fixed amount of seconds. Tests performed with
 	//			 multiple combined multiplications (to exploit the wNAF algorithm)
-mul:
 		{
 		int OPERANDS;
 		EC_POINT *points[10];
@@ -229,7 +366,7 @@ mul:
 				if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
 				count++;
 				}
-			fprintf(stdout, "MUL test terminated. %.1lf MULs per second performed (%d operands)\n", count/10.0f, OPERANDS);
+			fprintf(stdout, "(affine coordinates)\nMUL test terminated. %.1lf MULs per second performed (%d operands)\n", count/10.0f, OPERANDS);
 		
 	  		for (c=0;c<OPERANDS;++c)
 				{
@@ -240,12 +377,57 @@ mul:
 			}
 		}
 
+		//Lopez-dahab version
+		{
+		int OPERANDS;
+		EC_POINT *points[10];
+		BIGNUM *scalars[10];
+
+		for (OPERANDS = 1; OPERANDS <= 7; OPERANDS+=1) 
+			{
+			//Initialization
+			int c;
+  			for (c=0;c<OPERANDS;++c)
+				{
+				BIGNUM *py = BN_new(); //(BIGNUM *)malloc(sizeof(BIGNUM));
+				if (!BN_rand(py, BN_num_bits(y), 0, 0)) ABORT;
+				scalars[c] = py;
+				points[c] = EC_POINT_new(lgroup);
+				EC_POINT_set_compressed_coordinates_GF2m(lgroup, points[c], x, 0, ctx);
+				//EC_POINT_mul(group, points[c], NULL, points[c], py, ctx);
+				}
+			timeval at,bt;
+			long count = 0;
+			gettimeofday(&at, NULL);
+
+			if (!EC_GROUP_precompute_mult(lgroup, ctx)) ABORT;
+			while (true)
+				{
+				//if (!EC_POINTs_mul(group, points[0], scalars[0], OPERANDS-1, (const EC_POINT **)(points+1), (const BIGNUM **)(scalars+1), ctx)) ABORT;
+				if (!EC_POINTs_mul(lgroup, points[0], NULL, OPERANDS, (const EC_POINT **)(points), (const BIGNUM **)(scalars), ctx)) ABORT;
+				gettimeofday(&bt, NULL);
+				if (((bt.tv_sec*1000)+(bt.tv_usec/1000)) > ((at.tv_sec*1000)+(at.tv_usec/1000))+10000) break;
+				count++;
+				}
+			fprintf(stdout, "(lopezdahab coords)\nMUL test terminated. %.1lf MULs per second performed (%d operands)\n", count/10.0f, OPERANDS);
+		
+	  		for (c=0;c<OPERANDS;++c)
+				{
+				//free(scalars[c]);
+				BN_free(scalars[c]);
+				EC_POINT_free(points[c]);
+				}
+			}
+		}
 
 	EC_POINT_free(P);
 	EC_POINT_free(Q);
+	EC_POINT_free(lP);
+	EC_POINT_free(lQ);
 	if (ctx) BN_CTX_free(ctx);
 	BN_free(p); BN_free(a); BN_free(b); BN_free(x); BN_free(y); BN_free(z); BN_free(cof);
 	EC_GROUP_free(group);
+	EC_GROUP_free(lgroup);
 	}
 
 /*

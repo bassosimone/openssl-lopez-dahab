@@ -77,15 +77,15 @@
 #include <openssl/fips.h>
 #endif
 
-//#define OPENSSL_NO_LOPEZDAHAB
+//#define OPENSSL_FORCE_LOPEZDAHAB
 
 const EC_METHOD *EC_GF2m_simple_method(void)
 	{
 #ifdef OPENSSL_FIPS
 	return fips_ec_gf2m_simple_method();
 #else
-#ifndef OPENSSL_NO_LOPEZDAHAB
-	return lopezdahab_ec_gf2m_simple_method();
+#ifdef OPENSSL_FORCE_LOPEZDAHAB
+	return EC_GF2m_lopezdahab_method();
 #else
 	static const EC_METHOD ret = {
 		EC_FLAGS_DEFAULT_OCT,

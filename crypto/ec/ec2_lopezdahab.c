@@ -34,6 +34,12 @@
 #endif
 
 /*
+ * ONLY FOR TEST PURPOSES: disables the conversion in affine coordinates 
+ * after each ADD/DBL.
+ */
+//#define REMOVE_TOAFFINE
+
+/*
  * Lopez-Dahab context.  Contains the bignum context and the group,
  * plus a number of temporary bignums for computation.  It should be
  * created on the stack and initialized with lopezdahab_init before
@@ -48,7 +54,7 @@
 struct lopezdahab {
 	BN_CTX		*ctx;
 	const EC_GROUP	*group;
-	BIGNUM		regs[37];
+	BIGNUM		*regs[37];
 	unsigned int	flags;
 };
 
@@ -94,7 +100,7 @@ struct lopezdahab {
 
 #define			LOPEZDAHAB_F_CTX (1<<0)		/* must free() ctx */
 
-const EC_METHOD *lopezdahab_ec_gf2m_simple_method(void)
+const EC_METHOD *EC_GF2m_lopezdahab_method(void)
 	{
 	static const EC_METHOD ret = {
 		EC_FLAGS_DEFAULT_OCT,
@@ -154,23 +160,27 @@ lopezdahab_init(struct lopezdahab *ld, BN_CTX *ctx, const EC_GROUP *group)
 {
 	int	i;
 
-	memset(ld, 0, sizeof (*ld));
+	//memset(ld, 0, sizeof (*ld));
 	if (ctx == NULL) {
-		ld->flags |= LOPEZDAHAB_F_CTX;
+		ld->flags = LOPEZDAHAB_F_CTX;
 		ctx = BN_CTX_new();
 		if (ctx == NULL)
 			return (0);
+	} else {
+		ld->flags = 0;
 	}
 	ld->ctx = ctx;
 	ld->group = group;
 	BN_CTX_start(ld->ctx);
-	for (i = 0; i < nitems(ld->regs); ++i)
-		BN_init(&ld->regs[i]);
+	for (i = 0; i < nitems(ld->regs); ++i) {
+		ld->regs[i] = BN_CTX_get(ld->ctx);
+		//BN_init(ld->regs[i]);
+	}
 
 	/* copy curve parameters */
-	if (!BN_copy(&ld->ld_a2, &group->a))
+	if (!BN_copy(ld->ld_a2, &group->a))
 		return (0);
-	if (!BN_copy(&ld->ld_a6, &group->b))
+	if (!BN_copy(ld->ld_a6, &group->b))
 		return (0);
 
 	return (1);
@@ -182,10 +192,10 @@ lopezdahab_finish(struct lopezdahab *ld)
 {
 	int	i;
 
-	for (i = 0; i < nitems(ld->regs); ++i)
-		BN_free(&ld->regs[i]);
 	if (ld->ctx != NULL) {
 		BN_CTX_end(ld->ctx);
+		//for (i = 0; i < nitems(ld->regs); ++i)
+		//	BN_free(ld->regs[i]);
 		if (ld->flags & LOPEZDAHAB_F_CTX)
 			BN_CTX_free(ld->ctx);
 	}
@@ -229,20 +239,20 @@ int dblcnt;
 static int
 lopezdahab_dbl_2005_l(struct lopezdahab *ld)
 {
-	LOPEZDAHAB_MUL(&ld->ld_A, &ld->ld_X1, &ld->ld_Z1);
-	LOPEZDAHAB_SQUARE(&ld->ld_B, &ld->ld_X1);
-	LOPEZDAHAB_SUM(&ld->ld_C, &ld->ld_B, &ld->ld_Y1);
-	LOPEZDAHAB_MUL(&ld->ld_D, &ld->ld_A, &ld->ld_C);
-	LOPEZDAHAB_SQUARE(&ld->ld_Z3, &ld->ld_A);
-	LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_C);
-	LOPEZDAHAB_MUL(&ld->ld_t1, &ld->ld_a2, &ld->ld_Z3);
-	LOPEZDAHAB_SUM(&ld->ld_t2, &ld->ld_t0, &ld->ld_D);
-	LOPEZDAHAB_SUM(&ld->ld_X3, &ld->ld_t2, &ld->ld_t1);
-	LOPEZDAHAB_SUM(&ld->ld_t3, &ld->ld_Z3, &ld->ld_D);
-	LOPEZDAHAB_SQUARE(&ld->ld_t4, &ld->ld_B);
-	LOPEZDAHAB_MUL(&ld->ld_t5, &ld->ld_t4, &ld->ld_Z3);
-	LOPEZDAHAB_MUL(&ld->ld_t6, &ld->ld_t3, &ld->ld_X3);
-	LOPEZDAHAB_SUM(&ld->ld_Y3, &ld->ld_t6, &ld->ld_t5);
+	LOPEZDAHAB_MUL(ld->ld_A, ld->ld_X1, ld->ld_Z1);
+	LOPEZDAHAB_SQUARE(ld->ld_B, ld->ld_X1);
+	LOPEZDAHAB_SUM(ld->ld_C, ld->ld_B, ld->ld_Y1);
+	LOPEZDAHAB_MUL(ld->ld_D, ld->ld_A, ld->ld_C);
+	LOPEZDAHAB_SQUARE(ld->ld_Z3, ld->ld_A);
+	LOPEZDAHAB_SQUARE(ld->ld_t0, ld->ld_C);
+	LOPEZDAHAB_MUL(ld->ld_t1, ld->ld_a2, ld->ld_Z3);
+	LOPEZDAHAB_SUM(ld->ld_t2, ld->ld_t0, ld->ld_D);
+	LOPEZDAHAB_SUM(ld->ld_X3, ld->ld_t2, ld->ld_t1);
+	LOPEZDAHAB_SUM(ld->ld_t3, ld->ld_Z3, ld->ld_D);
+	LOPEZDAHAB_SQUARE(ld->ld_t4, ld->ld_B);
+	LOPEZDAHAB_MUL(ld->ld_t5, ld->ld_t4, ld->ld_Z3);
+	LOPEZDAHAB_MUL(ld->ld_t6, ld->ld_t3, ld->ld_X3);
+	LOPEZDAHAB_SUM(ld->ld_Y3, ld->ld_t6, ld->ld_t5);
 
 	return (1);
 }
@@ -251,32 +261,32 @@ lopezdahab_dbl_2005_l(struct lopezdahab *ld)
 static int
 lopezdahab_add_2005_dl(struct lopezdahab *ld)
 {
-	LOPEZDAHAB_MUL(&ld->ld_A, &ld->ld_X1, &ld->ld_Z2);
-	LOPEZDAHAB_MUL(&ld->ld_B, &ld->ld_X2, &ld->ld_Z1);
-	LOPEZDAHAB_SQUARE(&ld->ld_C, &ld->ld_A);
-	LOPEZDAHAB_SQUARE(&ld->ld_D, &ld->ld_B);
-	LOPEZDAHAB_SUM(&ld->ld_E, &ld->ld_A, &ld->ld_B);
-	LOPEZDAHAB_SUM(&ld->ld_F, &ld->ld_C, &ld->ld_D);
-	LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_Z2);
-	LOPEZDAHAB_MUL(&ld->ld_G, &ld->ld_Y1, &ld->ld_t0);
-	LOPEZDAHAB_SQUARE(&ld->ld_t1, &ld->ld_Z1);
-	LOPEZDAHAB_MUL(&ld->ld_H, &ld->ld_Y2, &ld->ld_t1);
-	LOPEZDAHAB_SUM(&ld->ld_I, &ld->ld_G, &ld->ld_H);
-	LOPEZDAHAB_MUL(&ld->ld_J, &ld->ld_I, &ld->ld_E);
-	LOPEZDAHAB_MUL(&ld->ld_t2, &ld->ld_Z1, &ld->ld_Z2);
-	LOPEZDAHAB_MUL(&ld->ld_Z3, &ld->ld_F, &ld->ld_t2);
-	LOPEZDAHAB_SUM(&ld->ld_t3, &ld->ld_H, &ld->ld_D);
-	LOPEZDAHAB_SUM(&ld->ld_t4, &ld->ld_C, &ld->ld_G);
-	LOPEZDAHAB_MUL(&ld->ld_t5, &ld->ld_B, &ld->ld_t4);
-	LOPEZDAHAB_MUL(&ld->ld_t6, &ld->ld_A, &ld->ld_t3);
-	LOPEZDAHAB_SUM(&ld->ld_X3, &ld->ld_t6, &ld->ld_t5);
-	LOPEZDAHAB_MUL(&ld->ld_t7, &ld->ld_F, &ld->ld_G);
-	LOPEZDAHAB_MUL(&ld->ld_t8, &ld->ld_A, &ld->ld_J);
-	LOPEZDAHAB_SUM(&ld->ld_t9, &ld->ld_t8, &ld->ld_t7);
-	LOPEZDAHAB_SUM(&ld->ld_t10, &ld->ld_J, &ld->ld_Z3);
-	LOPEZDAHAB_MUL(&ld->ld_t11, &ld->ld_t10, &ld->ld_X3);
-	LOPEZDAHAB_MUL(&ld->ld_t12, &ld->ld_t9, &ld->ld_F);
-	LOPEZDAHAB_SUM(&ld->ld_Y3, &ld->ld_t12, &ld->ld_t11);
+	LOPEZDAHAB_MUL(ld->ld_A, ld->ld_X1, ld->ld_Z2);
+	LOPEZDAHAB_MUL(ld->ld_B, ld->ld_X2, ld->ld_Z1);
+	LOPEZDAHAB_SQUARE(ld->ld_C, ld->ld_A);
+	LOPEZDAHAB_SQUARE(ld->ld_D, ld->ld_B);
+	LOPEZDAHAB_SUM(ld->ld_E, ld->ld_A, ld->ld_B);
+	LOPEZDAHAB_SUM(ld->ld_F, ld->ld_C, ld->ld_D);
+	LOPEZDAHAB_SQUARE(ld->ld_t0, ld->ld_Z2);
+	LOPEZDAHAB_MUL(ld->ld_G, ld->ld_Y1, ld->ld_t0);
+	LOPEZDAHAB_SQUARE(ld->ld_t1, ld->ld_Z1);
+	LOPEZDAHAB_MUL(ld->ld_H, ld->ld_Y2, ld->ld_t1);
+	LOPEZDAHAB_SUM(ld->ld_I, ld->ld_G, ld->ld_H);
+	LOPEZDAHAB_MUL(ld->ld_J, ld->ld_I, ld->ld_E);
+	LOPEZDAHAB_MUL(ld->ld_t2, ld->ld_Z1, ld->ld_Z2);
+	LOPEZDAHAB_MUL(ld->ld_Z3, ld->ld_F, ld->ld_t2);
+	LOPEZDAHAB_SUM(ld->ld_t3, ld->ld_H, ld->ld_D);
+	LOPEZDAHAB_SUM(ld->ld_t4, ld->ld_C, ld->ld_G);
+	LOPEZDAHAB_MUL(ld->ld_t5, ld->ld_B, ld->ld_t4);
+	LOPEZDAHAB_MUL(ld->ld_t6, ld->ld_A, ld->ld_t3);
+	LOPEZDAHAB_SUM(ld->ld_X3, ld->ld_t6, ld->ld_t5);
+	LOPEZDAHAB_MUL(ld->ld_t7, ld->ld_F, ld->ld_G);
+	LOPEZDAHAB_MUL(ld->ld_t8, ld->ld_A, ld->ld_J);
+	LOPEZDAHAB_SUM(ld->ld_t9, ld->ld_t8, ld->ld_t7);
+	LOPEZDAHAB_SUM(ld->ld_t10, ld->ld_J, ld->ld_Z3);
+	LOPEZDAHAB_MUL(ld->ld_t11, ld->ld_t10, ld->ld_X3);
+	LOPEZDAHAB_MUL(ld->ld_t12, ld->ld_t9, ld->ld_F);
+	LOPEZDAHAB_SUM(ld->ld_Y3, ld->ld_t12, ld->ld_t11);
 
 	return (1);
 }
@@ -285,29 +295,29 @@ lopezdahab_add_2005_dl(struct lopezdahab *ld)
 static int
 lopezdahab_madd_2005_dl(struct lopezdahab *ld)
 {
-	LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_Z1);			//t0 = Z1^2
-	LOPEZDAHAB_MUL(&ld->ld_t1, &ld->ld_Y2, &ld->ld_t0);	//t1 = Y2*Z1^2
-	LOPEZDAHAB_SUM(&ld->ld_A, &ld->ld_Y1, &ld->ld_t1); 	//A = Y1 + Y2*Z1^2
-	LOPEZDAHAB_MUL(&ld->ld_t2, &ld->ld_X2, &ld->ld_Z1);	//t2 = X2*Z1
-	LOPEZDAHAB_SUM(&ld->ld_B, &ld->ld_X1, &ld->ld_t2); 	//B = X1 + X2*Z1
-	LOPEZDAHAB_MUL(&ld->ld_C, &ld->ld_B, &ld->ld_Z1); 	//C = B * Z1
-	LOPEZDAHAB_SQUARE(&ld->ld_Z3, &ld->ld_C);			//Z3 = C^2
-	LOPEZDAHAB_MUL(&ld->ld_D, &ld->ld_X2, &ld->ld_Z3);	//D = X2*Z3
-	LOPEZDAHAB_SQUARE(&ld->ld_t3, &ld->ld_A);			//t3 = A^2
-	LOPEZDAHAB_SQUARE(&ld->ld_t4, &ld->ld_B);			//t4 = B^2
-	LOPEZDAHAB_MUL(&ld->ld_t5, &ld->ld_a2, &ld->ld_C);	//t5 = a2*C
-	LOPEZDAHAB_SUM(&ld->ld_t6, &ld->ld_A, &ld->ld_t4);	//t6 = A + B^2
-	LOPEZDAHAB_SUM(&ld->ld_t7, &ld->ld_t6, &ld->ld_t5);	//t7 = A + B^2 + a2*C
-	LOPEZDAHAB_MUL(&ld->ld_t8, &ld->ld_C, &ld->ld_t7);	//t8 = C * (A + B^2 + a2*C)
-	LOPEZDAHAB_SUM(&ld->ld_X3, &ld->ld_t3, &ld->ld_t8);	//X3 = A^2 + C * (A + B^2 + a2*C)
-	LOPEZDAHAB_SUM(&ld->ld_t9, &ld->ld_D, &ld->ld_X3);	//t9 = D + X3
-	LOPEZDAHAB_MUL(&ld->ld_t10, &ld->ld_A, &ld->ld_C);	//t10 = A*C
-	LOPEZDAHAB_SUM(&ld->ld_t11, &ld->ld_t10, &ld->ld_Z3);	//t11 = A*C + Z3
-	LOPEZDAHAB_MUL(&ld->ld_t12, &ld->ld_t9, &ld->ld_t11);	//t12 = (D+X3)*(A*C+Z3)
-	LOPEZDAHAB_SUM(&ld->ld_t13, &ld->ld_Y2, &ld->ld_X2);	//t13 = Y2+X2
-	LOPEZDAHAB_SQUARE(&ld->ld_t14, &ld->ld_Z3);				//t14 = Z3^2
-	LOPEZDAHAB_MUL(&ld->ld_t15, &ld->ld_t13, &ld->ld_t14);	//t15 = (Y2+X2)*Z3^2
-	LOPEZDAHAB_SUM(&ld->ld_Y3, &ld->ld_t12, &ld->ld_t15);	//Y3 = (D+X3)*(A*C*Z3)+(Y2*X2)*Z3^2
+	LOPEZDAHAB_SQUARE(ld->ld_t0, ld->ld_Z1);			//t0 = Z1^2
+	LOPEZDAHAB_MUL(ld->ld_t1, ld->ld_Y2, ld->ld_t0);	//t1 = Y2*Z1^2
+	LOPEZDAHAB_SUM(ld->ld_A, ld->ld_Y1, ld->ld_t1); 	//A = Y1 + Y2*Z1^2
+	LOPEZDAHAB_MUL(ld->ld_t2, ld->ld_X2, ld->ld_Z1);	//t2 = X2*Z1
+	LOPEZDAHAB_SUM(ld->ld_B, ld->ld_X1, ld->ld_t2); 	//B = X1 + X2*Z1
+	LOPEZDAHAB_MUL(ld->ld_C, ld->ld_B, ld->ld_Z1); 	//C = B * Z1
+	LOPEZDAHAB_SQUARE(ld->ld_Z3, ld->ld_C);			//Z3 = C^2
+	LOPEZDAHAB_MUL(ld->ld_D, ld->ld_X2, ld->ld_Z3);	//D = X2*Z3
+	LOPEZDAHAB_SQUARE(ld->ld_t3, ld->ld_A);			//t3 = A^2
+	LOPEZDAHAB_SQUARE(ld->ld_t4, ld->ld_B);			//t4 = B^2
+	LOPEZDAHAB_MUL(ld->ld_t5, ld->ld_a2, ld->ld_C);	//t5 = a2*C
+	LOPEZDAHAB_SUM(ld->ld_t6, ld->ld_A, ld->ld_t4);	//t6 = A + B^2
+	LOPEZDAHAB_SUM(ld->ld_t7, ld->ld_t6, ld->ld_t5);	//t7 = A + B^2 + a2*C
+	LOPEZDAHAB_MUL(ld->ld_t8, ld->ld_C, ld->ld_t7);	//t8 = C * (A + B^2 + a2*C)
+	LOPEZDAHAB_SUM(ld->ld_X3, ld->ld_t3, ld->ld_t8);	//X3 = A^2 + C * (A + B^2 + a2*C)
+	LOPEZDAHAB_SUM(ld->ld_t9, ld->ld_D, ld->ld_X3);	//t9 = D + X3
+	LOPEZDAHAB_MUL(ld->ld_t10, ld->ld_A, ld->ld_C);	//t10 = A*C
+	LOPEZDAHAB_SUM(ld->ld_t11, ld->ld_t10, ld->ld_Z3);	//t11 = A*C + Z3
+	LOPEZDAHAB_MUL(ld->ld_t12, ld->ld_t9, ld->ld_t11);	//t12 = (D+X3)*(A*C+Z3)
+	LOPEZDAHAB_SUM(ld->ld_t13, ld->ld_Y2, ld->ld_X2);	//t13 = Y2+X2
+	LOPEZDAHAB_SQUARE(ld->ld_t14, ld->ld_Z3);				//t14 = Z3^2
+	LOPEZDAHAB_MUL(ld->ld_t15, ld->ld_t13, ld->ld_t14);	//t15 = (Y2+X2)*Z3^2
+	LOPEZDAHAB_SUM(ld->ld_Y3, ld->ld_t12, ld->ld_t15);	//Y3 = (D+X3)*(A*C*Z3)+(Y2*X2)*Z3^2
 
 	return (1);
 }
@@ -316,20 +326,20 @@ lopezdahab_madd_2005_dl(struct lopezdahab *ld)
 static int
 lopezdahab_add_affine(struct lopezdahab *ld)
 {
-	LOPEZDAHAB_SUM(&ld->ld_t0, &ld->ld_Y1, &ld->ld_Y2);
-	LOPEZDAHAB_SUM(&ld->ld_t1, &ld->ld_X1, &ld->ld_X2);
-	LOPEZDAHAB_INV(&ld->ld_t2, &ld->ld_t1);
-	LOPEZDAHAB_MUL(&ld->ld_A, &ld->ld_t0, &ld->ld_t2);
-	LOPEZDAHAB_SQUARE(&ld->ld_t3, &ld->ld_A);
-	LOPEZDAHAB_SUM(&ld->ld_t4, &ld->ld_t3, &ld->ld_A);
-	LOPEZDAHAB_SUM(&ld->ld_t5, &ld->ld_t4, &ld->ld_X1);
-	LOPEZDAHAB_SUM(&ld->ld_t6, &ld->ld_t5, &ld->ld_X2);
-	LOPEZDAHAB_SUM(&ld->ld_X3, &ld->ld_t6, &ld->ld_a2);
-	LOPEZDAHAB_SUM(&ld->ld_t7, &ld->ld_X1, &ld->ld_X3);
-	LOPEZDAHAB_MUL(&ld->ld_t8, &ld->ld_A, &ld->ld_t7);
-	LOPEZDAHAB_SUM(&ld->ld_t9, &ld->ld_t8, &ld->ld_X3);
-	LOPEZDAHAB_SUM(&ld->ld_Y3, &ld->ld_t9, &ld->ld_Y1);
-	if (!BN_set_word(&ld->ld_Z3, 1))
+	LOPEZDAHAB_SUM(ld->ld_t0, ld->ld_Y1, ld->ld_Y2);
+	LOPEZDAHAB_SUM(ld->ld_t1, ld->ld_X1, ld->ld_X2);
+	LOPEZDAHAB_INV(ld->ld_t2, ld->ld_t1);
+	LOPEZDAHAB_MUL(ld->ld_A, ld->ld_t0, ld->ld_t2);
+	LOPEZDAHAB_SQUARE(ld->ld_t3, ld->ld_A);
+	LOPEZDAHAB_SUM(ld->ld_t4, ld->ld_t3, ld->ld_A);
+	LOPEZDAHAB_SUM(ld->ld_t5, ld->ld_t4, ld->ld_X1);
+	LOPEZDAHAB_SUM(ld->ld_t6, ld->ld_t5, ld->ld_X2);
+	LOPEZDAHAB_SUM(ld->ld_X3, ld->ld_t6, ld->ld_a2);
+	LOPEZDAHAB_SUM(ld->ld_t7, ld->ld_X1, ld->ld_X3);
+	LOPEZDAHAB_MUL(ld->ld_t8, ld->ld_A, ld->ld_t7);
+	LOPEZDAHAB_SUM(ld->ld_t9, ld->ld_t8, ld->ld_X3);
+	LOPEZDAHAB_SUM(ld->ld_Y3, ld->ld_t9, ld->ld_Y1);
+	if (!BN_set_word(ld->ld_Z3, 1))
 		return (0);
 
 	return (1);
@@ -339,17 +349,17 @@ lopezdahab_add_affine(struct lopezdahab *ld)
 static int
 lopezdahab_dbl_affine(struct lopezdahab *ld)
 {
-	LOPEZDAHAB_INV(&ld->ld_t0, &ld->ld_X1);
-	LOPEZDAHAB_MUL(&ld->ld_t1, &ld->ld_Y1, &ld->ld_t0);
-	LOPEZDAHAB_SUM(&ld->ld_A, &ld->ld_X1, &ld->ld_t1);
-	LOPEZDAHAB_SQUARE(&ld->ld_t2, &ld->ld_A);
-	LOPEZDAHAB_SUM(&ld->ld_t3, &ld->ld_t2, &ld->ld_A);
-	LOPEZDAHAB_SUM(&ld->ld_X3, &ld->ld_t3, &ld->ld_a2);
-	LOPEZDAHAB_SUM(&ld->ld_t4, &ld->ld_X1, &ld->ld_X3);
-	LOPEZDAHAB_MUL(&ld->ld_t5, &ld->ld_A, &ld->ld_t4);
-	LOPEZDAHAB_SUM(&ld->ld_t6, &ld->ld_t5, &ld->ld_X3);
-	LOPEZDAHAB_SUM(&ld->ld_Y3, &ld->ld_t6, &ld->ld_Y1);
-	if (!BN_set_word(&ld->ld_Z3, 1))
+	LOPEZDAHAB_INV(ld->ld_t0, ld->ld_X1);
+	LOPEZDAHAB_MUL(ld->ld_t1, ld->ld_Y1, ld->ld_t0);
+	LOPEZDAHAB_SUM(ld->ld_A, ld->ld_X1, ld->ld_t1);
+	LOPEZDAHAB_SQUARE(ld->ld_t2, ld->ld_A);
+	LOPEZDAHAB_SUM(ld->ld_t3, ld->ld_t2, ld->ld_A);
+	LOPEZDAHAB_SUM(ld->ld_X3, ld->ld_t3, ld->ld_a2);
+	LOPEZDAHAB_SUM(ld->ld_t4, ld->ld_X1, ld->ld_X3);
+	LOPEZDAHAB_MUL(ld->ld_t5, ld->ld_A, ld->ld_t4);
+	LOPEZDAHAB_SUM(ld->ld_t6, ld->ld_t5, ld->ld_X3);
+	LOPEZDAHAB_SUM(ld->ld_Y3, ld->ld_t6, ld->ld_Y1);
+	if (!BN_set_word(ld->ld_Z3, 1))
 		return (0);
 
 	return (1);
@@ -413,7 +423,7 @@ static int
 lopezdahab_load_P1(struct lopezdahab *ld, const BIGNUM *X, const BIGNUM *Y,
     const BIGNUM *Z, int convert)
 {
-	return (lopezdahab_load(&ld->ld_X1, &ld->ld_Y1, &ld->ld_Z1,
+	return (lopezdahab_load(ld->ld_X1, ld->ld_Y1, ld->ld_Z1,
 	    X, Y, Z, convert));
 }
 
@@ -422,7 +432,7 @@ static int
 lopezdahab_load_P2(struct lopezdahab *ld, const BIGNUM *X,
     const BIGNUM *Y, const BIGNUM *Z, int convert)
 {
-	return (lopezdahab_load(&ld->ld_X2, &ld->ld_Y2, &ld->ld_Z2,
+	return (lopezdahab_load(ld->ld_X2, ld->ld_Y2, ld->ld_Z2,
 	    X, Y, Z, convert));
 }
 
@@ -459,10 +469,10 @@ lopezdahab_store(struct lopezdahab *ld, BIGNUM *X3, BIGNUM *Y3, BIGNUM *Z3,
 		 * The point (X, Y, Z) in lopezdahab coordinates is
 		 * converted to (X/Z, Y/Z^2) in affine coordinates.
 		 */
-		LOPEZDAHAB_INV(&ld->ld_t0, Z1);
-		LOPEZDAHAB_MUL(X3, X1, &ld->ld_t0);
-		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
-		LOPEZDAHAB_MUL(Y3, Y1, &ld->ld_t0);
+		LOPEZDAHAB_INV(ld->ld_t0, Z1);
+		LOPEZDAHAB_MUL(X3, X1, ld->ld_t0);
+		LOPEZDAHAB_SQUARE(ld->ld_t0, ld->ld_t0);
+		LOPEZDAHAB_MUL(Y3, Y1, ld->ld_t0);
 		/*
 		 * Reset Z to 1
 		 */
@@ -478,8 +488,8 @@ static int
 lopezdahab_store_P3(struct lopezdahab *ld, BIGNUM *X, BIGNUM *Y, BIGNUM *Z,
     int convert)
 {
-	return (lopezdahab_store(ld, X, Y, Z, &ld->ld_X3, &ld->ld_Y3,
-	    &ld->ld_Z3, convert));
+	return (lopezdahab_store(ld, X, Y, Z, ld->ld_X3, ld->ld_Y3,
+	    ld->ld_Z3, convert));
 }
 
 /*
@@ -656,7 +666,11 @@ int
 ec_GF2m_lopezdahab_add(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx)
 {
+#ifdef REMOVE_TOAFFINE
+	int convert = 0;
+#else
 	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1; 
+#endif
 	return (lopezdahab_add(group, r, a, b, ctx, convert));
 }
 
@@ -665,7 +679,11 @@ int
 ec_GF2m_lopezdahab_dbl(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *a, BN_CTX *ctx)
 {
-	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1;
+#ifdef REMOVE_TOAFFINE
+	int convert = 0;
+#else
+	int convert = (*group->flags & EC_FLAGS_NOGET_AFFINE)?0:1; 
+#endif
 	return (lopezdahab_dbl(group, r, a, ctx, convert));
 }
 
@@ -693,11 +711,11 @@ ec_GF2m_lopezdahab_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *c
 		 * The point (X, Y, Z) in lopezdahab coordinates is
 		 * converted to (X/Z, Y/Z^2) in affine coordinates.
 		 */
-		LOPEZDAHAB_INV(&ld->ld_t0, &point->Z);
+		LOPEZDAHAB_INV(ld->ld_t0, &point->Z);
 
-		LOPEZDAHAB_MUL(&point->X, &point->X, &ld->ld_t0);
-		LOPEZDAHAB_SQUARE(&ld->ld_t0, &ld->ld_t0);
-		LOPEZDAHAB_MUL(&point->Y, &point->Y, &ld->ld_t0);
+		LOPEZDAHAB_MUL(&point->X, &point->X, ld->ld_t0);
+		LOPEZDAHAB_SQUARE(ld->ld_t0, ld->ld_t0);
+		LOPEZDAHAB_MUL(&point->Y, &point->Y, ld->ld_t0);
 
 		/*
 		 * Reset Z to 1
