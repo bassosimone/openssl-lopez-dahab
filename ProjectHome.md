@@ -1,0 +1,1 @@
+This project aims to write a Lopez-Dahab binary elliptic curves implementation for OpenSSL
